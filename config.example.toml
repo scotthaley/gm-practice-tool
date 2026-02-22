@@ -1,0 +1,14 @@
+[api]
+anthropic_api_key = ""
+
+[models]
+router = "claude-haiku-4-5-20241022"
+player = "claude-sonnet-4-6-20250514"
+
+[models.parameters]
+router_max_tokens = 500
+player_max_tokens = 2000
+temperature = 0.8
+
+[app]
+theme = "dark"

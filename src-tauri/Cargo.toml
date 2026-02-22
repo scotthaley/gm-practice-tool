@@ -1,0 +1,29 @@
+[package]
+name = "gm-practice-tool"
+version = "0.1.0"
+description = "A GM Practice Tool for TTRPG campaigns"
+authors = ["you"]
+edition = "2021"
+
+[lib]
+name = "tauri_app_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+reqwest = { version = "0.12", features = ["json"] }
+tokio = { version = "1", features = ["full"] }
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1", features = ["v4"] }
+dirs = "6"
+thiserror = "2"
+rand = "0.8"
+sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite"] }
+
