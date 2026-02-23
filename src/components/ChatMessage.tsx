@@ -20,7 +20,7 @@ export function ChatMessage({ message, players }: Props) {
   const color = player?.color || '#6366f1';
 
   const diceResults = message.metadata?.tool_calls?.filter((tc) => tc.tool === 'roll_dice') || [];
-  const notificationTools = ['store_memory', 'update_rules', 'add_campaign_log'];
+  const notificationTools = ['store_memory', 'update_rules', 'add_campaign_log', 'create_character', 'update_character'];
   const toolNotifications = message.metadata?.tool_calls?.filter((tc) => notificationTools.includes(tc.tool)) || [];
 
   const handleDelete = async () => {
