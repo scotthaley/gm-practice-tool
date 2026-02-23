@@ -25,7 +25,7 @@ export function ChatView() {
   }
 
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="flex-1 flex flex-col min-h-0">
       {/* Header */}
       <div className="px-6 py-3 border-b border-gray-700 bg-gray-800/50">
         <h2 className="text-lg font-semibold">{activeCampaign.name}</h2>
