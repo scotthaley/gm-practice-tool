@@ -1,9 +1,17 @@
+export interface Ruleset {
+  id: string;
+  name: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Campaign {
   id: string;
   name: string;
   description: string;
   setting: string;
-  ruleset: string;
+  ruleset_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -12,13 +20,17 @@ export interface Player {
   id: string;
   campaign_id: string;
   name: string;
-  race: string;
-  class: string;
-  level: number;
-  backstory: string;
   personality: string;
-  stats: Record<string, number>;
   color: string;
+  created_at: string;
+}
+
+export interface PlayerCharacter {
+  id: string;
+  campaign_id: string;
+  player_id: string | null;
+  name: string;
+  details: Record<string, unknown>;
   created_at: string;
 }
 
@@ -74,19 +86,21 @@ export interface CreateCampaignRequest {
   name: string;
   description: string;
   setting: string;
-  ruleset: string;
+  ruleset_id: string | null;
 }
 
 export interface CreatePlayerRequest {
   campaign_id: string;
   name: string;
-  race: string;
-  class: string;
-  level: number;
-  backstory: string;
   personality: string;
-  stats: Record<string, number>;
   color: string;
 }
 
-export type AppView = 'chat' | 'campaign-setup' | 'player-setup' | 'settings';
+export interface CreatePlayerCharacterRequest {
+  campaign_id: string;
+  player_id: string | null;
+  name: string;
+  details: Record<string, unknown>;
+}
+
+export type AppView = 'home' | 'chat' | 'campaign-setup' | 'ruleset-edit';

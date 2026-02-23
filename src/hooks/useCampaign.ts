@@ -1,7 +1,7 @@
 import { useCallback, useEffect } from 'react';
 import { useAppState, useAppDispatch } from '../stores/appStore';
 import * as api from '../lib/api';
-import type { CreateCampaignRequest, CreatePlayerRequest } from '../lib/types';
+import type { CreateCampaignRequest, CreatePlayerRequest, CreatePlayerCharacterRequest } from '../lib/types';
 
 export function useCampaign() {
   const state = useAppState();
@@ -21,9 +21,13 @@ export function useCampaign() {
       try {
         const campaign = await api.getCampaign(campaignId);
         dispatch({ type: 'SET_ACTIVE_CAMPAIGN', campaign });
-        const players = await api.listPlayers(campaignId);
+        const [players, playerCharacters, messages] = await Promise.all([
+          api.listPlayers(campaignId),
+          api.listPlayerCharacters(campaignId),
+          api.getMessages(campaignId),
+        ]);
         dispatch({ type: 'SET_PLAYERS', players });
-        const messages = await api.getMessages(campaignId);
+        dispatch({ type: 'SET_PLAYER_CHARACTERS', playerCharacters });
         dispatch({ type: 'SET_MESSAGES', messages });
         dispatch({ type: 'SET_VIEW', view: 'chat' });
       } catch (e) {
@@ -64,6 +68,20 @@ export function useCampaign() {
     [dispatch],
   );
 
+  const createPlayerCharacter = useCallback(
+    async (request: CreatePlayerCharacterRequest) => {
+      try {
+        const playerCharacter = await api.createPlayerCharacter(request);
+        dispatch({ type: 'ADD_PLAYER_CHARACTER', playerCharacter });
+        return playerCharacter;
+      } catch (e) {
+        dispatch({ type: 'SET_ERROR', error: String(e) });
+        throw e;
+      }
+    },
+    [dispatch],
+  );
+
   useEffect(() => {
     loadCampaigns();
   }, [loadCampaigns]);
@@ -72,9 +90,11 @@ export function useCampaign() {
     campaigns: state.campaigns,
     activeCampaign: state.activeCampaign,
     players: state.players,
+    playerCharacters: state.playerCharacters,
     loadCampaigns,
     selectCampaign,
     createCampaign,
     createPlayer,
+    createPlayerCharacter,
   };
 }

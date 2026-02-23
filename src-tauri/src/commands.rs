@@ -23,6 +23,110 @@ pub async fn update_config(config: AppConfig) -> Result<(), AppError> {
     config::save_config(&config)
 }
 
+// Ruleset commands
+#[tauri::command]
+pub async fn create_ruleset(
+    db: Db<'_>,
+    request: CreateRulesetRequest,
+) -> Result<Ruleset, AppError> {
+    let id = Uuid::new_v4().to_string();
+    let now = chrono::Utc::now().to_rfc3339();
+
+    sqlx::query(
+        "INSERT INTO rulesets (id, name, content, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+    )
+    .bind(&id)
+    .bind(&request.name)
+    .bind(&request.content)
+    .bind(&now)
+    .bind(&now)
+    .execute(db.inner())
+    .await
+    .map_err(|e| AppError::Database(e.to_string()))?;
+
+    Ok(Ruleset {
+        id,
+        name: request.name,
+        content: request.content,
+        created_at: now.clone(),
+        updated_at: now,
+    })
+}
+
+#[tauri::command]
+pub async fn list_rulesets(db: Db<'_>) -> Result<Vec<Ruleset>, AppError> {
+    let rows = sqlx::query(
+        "SELECT id, name, content, created_at, updated_at FROM rulesets ORDER BY updated_at DESC",
+    )
+    .fetch_all(db.inner())
+    .await
+    .map_err(|e| AppError::Database(e.to_string()))?;
+
+    Ok(rows
+        .iter()
+        .map(|r| Ruleset {
+            id: r.get("id"),
+            name: r.get("name"),
+            content: r.get("content"),
+            created_at: r.get("created_at"),
+            updated_at: r.get("updated_at"),
+        })
+        .collect())
+}
+
+#[tauri::command]
+pub async fn get_ruleset(db: Db<'_>, ruleset_id: String) -> Result<Ruleset, AppError> {
+    query_ruleset(db.inner(), &ruleset_id).await
+}
+
+#[tauri::command]
+pub async fn update_ruleset(
+    db: Db<'_>,
+    request: UpdateRulesetRequest,
+) -> Result<Ruleset, AppError> {
+    let now = chrono::Utc::now().to_rfc3339();
+
+    sqlx::query("UPDATE rulesets SET name = ?, content = ?, updated_at = ? WHERE id = ?")
+        .bind(&request.name)
+        .bind(&request.content)
+        .bind(&now)
+        .bind(&request.id)
+        .execute(db.inner())
+        .await
+        .map_err(|e| AppError::Database(e.to_string()))?;
+
+    query_ruleset(db.inner(), &request.id).await
+}
+
+#[tauri::command]
+pub async fn delete_ruleset(db: Db<'_>, ruleset_id: String) -> Result<(), AppError> {
+    sqlx::query("DELETE FROM rulesets WHERE id = ?")
+        .bind(&ruleset_id)
+        .execute(db.inner())
+        .await
+        .map_err(|e| AppError::Database(e.to_string()))?;
+    Ok(())
+}
+
+pub async fn query_ruleset(pool: &SqlitePool, ruleset_id: &str) -> Result<Ruleset, AppError> {
+    let row = sqlx::query(
+        "SELECT id, name, content, created_at, updated_at FROM rulesets WHERE id = ?",
+    )
+    .bind(ruleset_id)
+    .fetch_optional(pool)
+    .await
+    .map_err(|e| AppError::Database(e.to_string()))?
+    .ok_or_else(|| AppError::Database("Ruleset not found".to_string()))?;
+
+    Ok(Ruleset {
+        id: row.get("id"),
+        name: row.get("name"),
+        content: row.get("content"),
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+    })
+}
+
 // Campaign commands
 #[tauri::command]
 pub async fn create_campaign(
@@ -33,13 +137,13 @@ pub async fn create_campaign(
     let now = chrono::Utc::now().to_rfc3339();
 
     sqlx::query(
-        "INSERT INTO campaigns (id, name, description, setting, ruleset, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO campaigns (id, name, description, setting, ruleset_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
     )
     .bind(&id)
     .bind(&request.name)
     .bind(&request.description)
     .bind(&request.setting)
-    .bind(&request.ruleset)
+    .bind(&request.ruleset_id)
     .bind(&now)
     .bind(&now)
     .execute(db.inner())
@@ -51,7 +155,7 @@ pub async fn create_campaign(
         name: request.name,
         description: request.description,
         setting: request.setting,
-        ruleset: request.ruleset,
+        ruleset_id: request.ruleset_id,
         created_at: now.clone(),
         updated_at: now,
     })
@@ -60,7 +164,7 @@ pub async fn create_campaign(
 #[tauri::command]
 pub async fn list_campaigns(db: Db<'_>) -> Result<Vec<Campaign>, AppError> {
     let rows = sqlx::query(
-        "SELECT id, name, description, setting, ruleset, created_at, updated_at FROM campaigns ORDER BY updated_at DESC",
+        "SELECT id, name, description, setting, ruleset_id, created_at, updated_at FROM campaigns ORDER BY updated_at DESC",
     )
     .fetch_all(db.inner())
     .await
@@ -73,7 +177,7 @@ pub async fn list_campaigns(db: Db<'_>) -> Result<Vec<Campaign>, AppError> {
             name: r.get("name"),
             description: r.get("description"),
             setting: r.get("setting"),
-            ruleset: r.get("ruleset"),
+            ruleset_id: r.get("ruleset_id"),
             created_at: r.get("created_at"),
             updated_at: r.get("updated_at"),
         })
@@ -82,24 +186,7 @@ pub async fn list_campaigns(db: Db<'_>) -> Result<Vec<Campaign>, AppError> {
 
 #[tauri::command]
 pub async fn get_campaign(db: Db<'_>, campaign_id: String) -> Result<Campaign, AppError> {
-    let row = sqlx::query(
-        "SELECT id, name, description, setting, ruleset, created_at, updated_at FROM campaigns WHERE id = ?",
-    )
-    .bind(&campaign_id)
-    .fetch_optional(db.inner())
-    .await
-    .map_err(|e| AppError::Database(e.to_string()))?
-    .ok_or_else(|| AppError::Database("Campaign not found".to_string()))?;
-
-    Ok(Campaign {
-        id: row.get("id"),
-        name: row.get("name"),
-        description: row.get("description"),
-        setting: row.get("setting"),
-        ruleset: row.get("ruleset"),
-        created_at: row.get("created_at"),
-        updated_at: row.get("updated_at"),
-    })
+    query_campaign(db.inner(), &campaign_id).await
 }
 
 // Player commands
@@ -110,20 +197,14 @@ pub async fn create_player(
 ) -> Result<Player, AppError> {
     let id = Uuid::new_v4().to_string();
     let now = chrono::Utc::now().to_rfc3339();
-    let stats_json = serde_json::to_string(&request.stats).unwrap_or_default();
 
     sqlx::query(
-        "INSERT INTO players (id, campaign_id, name, race, class, level, backstory, personality, stats, color, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO players (id, campaign_id, name, personality, color, created_at) VALUES (?, ?, ?, ?, ?, ?)",
     )
     .bind(&id)
     .bind(&request.campaign_id)
     .bind(&request.name)
-    .bind(&request.race)
-    .bind(&request.class)
-    .bind(request.level)
-    .bind(&request.backstory)
     .bind(&request.personality)
-    .bind(&stats_json)
     .bind(&request.color)
     .bind(&now)
     .execute(db.inner())
@@ -134,12 +215,7 @@ pub async fn create_player(
         id,
         campaign_id: request.campaign_id,
         name: request.name,
-        race: request.race,
-        class: request.class,
-        level: request.level,
-        backstory: request.backstory,
         personality: request.personality,
-        stats: request.stats,
         color: request.color,
         created_at: now,
     })
@@ -155,7 +231,73 @@ pub async fn list_players(
 
 pub async fn query_players(pool: &SqlitePool, campaign_id: &str) -> Result<Vec<Player>, AppError> {
     let rows = sqlx::query(
-        "SELECT id, campaign_id, name, race, class, level, backstory, personality, stats, color, created_at FROM players WHERE campaign_id = ? ORDER BY created_at",
+        "SELECT id, campaign_id, name, personality, color, created_at FROM players WHERE campaign_id = ? ORDER BY created_at",
+    )
+    .bind(campaign_id)
+    .fetch_all(pool)
+    .await
+    .map_err(|e| AppError::Database(e.to_string()))?;
+
+    Ok(rows
+        .iter()
+        .map(|r| Player {
+            id: r.get("id"),
+            campaign_id: r.get("campaign_id"),
+            name: r.get("name"),
+            personality: r.get("personality"),
+            color: r.get("color"),
+            created_at: r.get("created_at"),
+        })
+        .collect())
+}
+
+// Player character commands
+#[tauri::command]
+pub async fn create_player_character(
+    db: Db<'_>,
+    request: CreatePlayerCharacterRequest,
+) -> Result<PlayerCharacter, AppError> {
+    let id = Uuid::new_v4().to_string();
+    let now = chrono::Utc::now().to_rfc3339();
+    let details_json = serde_json::to_string(&request.details).unwrap_or_default();
+
+    sqlx::query(
+        "INSERT INTO player_characters (id, campaign_id, player_id, name, details, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+    )
+    .bind(&id)
+    .bind(&request.campaign_id)
+    .bind(&request.player_id)
+    .bind(&request.name)
+    .bind(&details_json)
+    .bind(&now)
+    .execute(db.inner())
+    .await
+    .map_err(|e| AppError::Database(e.to_string()))?;
+
+    Ok(PlayerCharacter {
+        id,
+        campaign_id: request.campaign_id,
+        player_id: request.player_id,
+        name: request.name,
+        details: request.details,
+        created_at: now,
+    })
+}
+
+#[tauri::command]
+pub async fn list_player_characters(
+    db: Db<'_>,
+    campaign_id: String,
+) -> Result<Vec<PlayerCharacter>, AppError> {
+    query_player_characters(db.inner(), &campaign_id).await
+}
+
+pub async fn query_player_characters(
+    pool: &SqlitePool,
+    campaign_id: &str,
+) -> Result<Vec<PlayerCharacter>, AppError> {
+    let rows = sqlx::query(
+        "SELECT id, campaign_id, player_id, name, details, created_at FROM player_characters WHERE campaign_id = ? ORDER BY created_at",
     )
     .bind(campaign_id)
     .fetch_all(pool)
@@ -165,18 +307,13 @@ pub async fn query_players(pool: &SqlitePool, campaign_id: &str) -> Result<Vec<P
     Ok(rows
         .iter()
         .map(|r| {
-            let stats_str: String = r.get("stats");
-            Player {
+            let details_str: String = r.get("details");
+            PlayerCharacter {
                 id: r.get("id"),
                 campaign_id: r.get("campaign_id"),
+                player_id: r.get("player_id"),
                 name: r.get("name"),
-                race: r.get("race"),
-                class: r.get("class"),
-                level: r.get("level"),
-                backstory: r.get("backstory"),
-                personality: r.get("personality"),
-                stats: serde_json::from_str(&stats_str).unwrap_or_default(),
-                color: r.get("color"),
+                details: serde_json::from_str(&details_str).unwrap_or_default(),
                 created_at: r.get("created_at"),
             }
         })
@@ -185,7 +322,7 @@ pub async fn query_players(pool: &SqlitePool, campaign_id: &str) -> Result<Vec<P
 
 pub async fn query_campaign(pool: &SqlitePool, campaign_id: &str) -> Result<Campaign, AppError> {
     let row = sqlx::query(
-        "SELECT id, name, description, setting, ruleset, created_at, updated_at FROM campaigns WHERE id = ?",
+        "SELECT id, name, description, setting, ruleset_id, created_at, updated_at FROM campaigns WHERE id = ?",
     )
     .bind(campaign_id)
     .fetch_optional(pool)
@@ -198,7 +335,7 @@ pub async fn query_campaign(pool: &SqlitePool, campaign_id: &str) -> Result<Camp
         name: row.get("name"),
         description: row.get("description"),
         setting: row.get("setting"),
-        ruleset: row.get("ruleset"),
+        ruleset_id: row.get("ruleset_id"),
         created_at: row.get("created_at"),
         updated_at: row.get("updated_at"),
     })
@@ -284,15 +421,34 @@ pub async fn send_gm_message(
     // Get campaign info
     let campaign = query_campaign(pool, &campaign_id).await?;
 
-    // Get all players
+    // Fetch ruleset content if campaign has one
+    let ruleset_content = if let Some(ref rid) = campaign.ruleset_id {
+        match query_ruleset(pool, rid).await {
+            Ok(rs) => rs.content,
+            Err(_) => String::new(),
+        }
+    } else {
+        String::new()
+    };
+
+    // Get all players and characters
     let players = query_players(pool, &campaign_id).await?;
+    let characters = query_player_characters(pool, &campaign_id).await?;
     if players.is_empty() {
         return Ok(new_messages);
     }
 
     // Route the message
-    let route_result =
-        route_gm_message(&client, &config, &campaign.setting, &players, &message).await?;
+    let route_result = route_gm_message(
+        &client,
+        &config,
+        &campaign.setting,
+        &ruleset_content,
+        &players,
+        &characters,
+        &message,
+    )
+    .await?;
 
     // Store campaign log entry
     let log_id = Uuid::new_v4().to_string();
@@ -337,6 +493,12 @@ pub async fn send_gm_message(
             None => continue,
         };
 
+        let player_characters: Vec<PlayerCharacter> = characters
+            .iter()
+            .filter(|c| c.player_id.as_deref() == Some(&player.id))
+            .cloned()
+            .collect();
+
         let player_memories =
             memory::get_player_memories(pool, &player.id, &campaign_id, 10).await?;
         let group_memories = memory::get_group_memories(pool, &campaign_id, 10).await?;
@@ -344,14 +506,23 @@ pub async fn send_gm_message(
 
         let context = PlayerContext {
             player: player.clone(),
+            characters: player_characters,
             memories: player_memories,
             group_memories,
             recent_log,
+            ruleset_id: campaign.ruleset_id.clone(),
         };
 
-        let (response_text, metadata) =
-            generate_player_response(&client, &config, pool, &context, &message, &campaign.setting)
-                .await?;
+        let (response_text, metadata) = generate_player_response(
+            &client,
+            &config,
+            pool,
+            &context,
+            &message,
+            &campaign.setting,
+            &ruleset_content,
+        )
+        .await?;
 
         // Store player message
         let msg_id = Uuid::new_v4().to_string();

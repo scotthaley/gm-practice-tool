@@ -65,6 +65,20 @@ pub fn get_player_tools() -> Vec<ToolDefinition> {
             }),
         },
         ToolDefinition {
+            name: "update_rules".to_string(),
+            description: "Append a rule clarification or update to the campaign's ruleset. Use this when the GM explains, clarifies, or modifies a game rule, or when a house rule is established during play.".to_string(),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "clarification": {
+                        "type": "string",
+                        "description": "The rule clarification, explanation, or house rule to append to the ruleset"
+                    }
+                },
+                "required": ["clarification"]
+            }),
+        },
+        ToolDefinition {
             name: "recall_memory".to_string(),
             description: "Try to recall a memory about a specific topic. Use this when your character is trying to remember something relevant.".to_string(),
             input_schema: json!({

@@ -1,12 +1,34 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Ruleset {
+    pub id: String,
+    pub name: String,
+    pub content: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateRulesetRequest {
+    pub name: String,
+    pub content: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateRulesetRequest {
+    pub id: String,
+    pub name: String,
+    pub content: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Campaign {
     pub id: String,
     pub name: String,
     pub description: String,
     pub setting: String,
-    pub ruleset: String,
+    pub ruleset_id: Option<String>,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -16,13 +38,18 @@ pub struct Player {
     pub id: String,
     pub campaign_id: String,
     pub name: String,
-    pub race: String,
-    pub class: String,
-    pub level: i32,
-    pub backstory: String,
     pub personality: String,
-    pub stats: serde_json::Value,
     pub color: String,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PlayerCharacter {
+    pub id: String,
+    pub campaign_id: String,
+    pub player_id: Option<String>,
+    pub name: String,
+    pub details: serde_json::Value,
     pub created_at: String,
 }
 
@@ -74,18 +101,21 @@ pub struct CreateCampaignRequest {
     pub name: String,
     pub description: String,
     pub setting: String,
-    pub ruleset: String,
+    pub ruleset_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreatePlayerRequest {
     pub campaign_id: String,
     pub name: String,
-    pub race: String,
-    pub class: String,
-    pub level: i32,
-    pub backstory: String,
     pub personality: String,
-    pub stats: serde_json::Value,
     pub color: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreatePlayerCharacterRequest {
+    pub campaign_id: String,
+    pub player_id: Option<String>,
+    pub name: String,
+    pub details: serde_json::Value,
 }

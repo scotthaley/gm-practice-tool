@@ -21,12 +21,20 @@ pub async fn create_pool() -> Result<SqlitePool, AppError> {
 
 async fn run_migrations(pool: &SqlitePool) -> Result<(), AppError> {
     sqlx::raw_sql(
-        "CREATE TABLE IF NOT EXISTS campaigns (
+        "CREATE TABLE IF NOT EXISTS rulesets (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            content TEXT NOT NULL DEFAULT '',
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS campaigns (
             id TEXT PRIMARY KEY,
             name TEXT NOT NULL,
             description TEXT NOT NULL DEFAULT '',
             setting TEXT NOT NULL DEFAULT '',
-            ruleset TEXT NOT NULL DEFAULT '',
+            ruleset_id TEXT REFERENCES rulesets(id) ON DELETE SET NULL,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL
         );
@@ -35,15 +43,21 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), AppError> {
             id TEXT PRIMARY KEY,
             campaign_id TEXT NOT NULL,
             name TEXT NOT NULL,
-            race TEXT NOT NULL DEFAULT '',
-            class TEXT NOT NULL DEFAULT '',
-            level INTEGER NOT NULL DEFAULT 1,
-            backstory TEXT NOT NULL DEFAULT '',
             personality TEXT NOT NULL DEFAULT '',
-            stats TEXT NOT NULL DEFAULT '{}',
             color TEXT NOT NULL DEFAULT '#6366f1',
             created_at TEXT NOT NULL,
             FOREIGN KEY (campaign_id) REFERENCES campaigns(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS player_characters (
+            id TEXT PRIMARY KEY,
+            campaign_id TEXT NOT NULL,
+            player_id TEXT,
+            name TEXT NOT NULL,
+            details TEXT NOT NULL DEFAULT '{}',
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (campaign_id) REFERENCES campaigns(id) ON DELETE CASCADE,
+            FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE SET NULL
         );
 
         CREATE TABLE IF NOT EXISTS campaign_log (
@@ -94,7 +108,9 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), AppError> {
         CREATE INDEX IF NOT EXISTS idx_campaign_log_campaign_timestamp ON campaign_log(campaign_id, timestamp);
         CREATE INDEX IF NOT EXISTS idx_player_memory_player_importance ON player_memory(player_id, importance);
         CREATE INDEX IF NOT EXISTS idx_group_memory_campaign ON group_memory(campaign_id);
-        CREATE INDEX IF NOT EXISTS idx_players_campaign ON players(campaign_id);",
+        CREATE INDEX IF NOT EXISTS idx_players_campaign ON players(campaign_id);
+        CREATE INDEX IF NOT EXISTS idx_player_characters_player ON player_characters(player_id);
+        CREATE INDEX IF NOT EXISTS idx_player_characters_campaign ON player_characters(campaign_id);",
     )
     .execute(pool)
     .await

@@ -1,27 +1,27 @@
 import { useEffect, useRef } from 'react';
 import { useChat } from '../hooks/useChat';
-import { useAppState } from '../stores/appStore';
+import { useAppState, useAppDispatch } from '../stores/appStore';
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 
 export function ChatView() {
   const { messages, loading, error, sendMessage } = useChat();
   const { activeCampaign, players } = useAppState();
+  const dispatch = useAppDispatch();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  useEffect(() => {
+    if (!activeCampaign) {
+      dispatch({ type: 'SET_VIEW', view: 'home' });
+    }
+  }, [activeCampaign, dispatch]);
+
   if (!activeCampaign) {
-    return (
-      <div className="flex-1 flex items-center justify-center text-gray-500">
-        <div className="text-center">
-          <p className="text-lg mb-2">No campaign selected</p>
-          <p className="text-sm">Create or select a campaign to start</p>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   return (

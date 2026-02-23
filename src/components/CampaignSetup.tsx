@@ -1,12 +1,18 @@
 import { useState, type FormEvent } from 'react';
 import { useCampaign } from '../hooks/useCampaign';
+import { useRuleset } from '../hooks/useRuleset';
+import { useAppDispatch } from '../stores/appStore';
 
 export function CampaignSetup() {
   const { createCampaign } = useCampaign();
+  const { rulesets, createRuleset } = useRuleset();
+  const dispatch = useAppDispatch();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [setting, setSetting] = useState('');
-  const [ruleset, setRuleset] = useState('');
+  const [rulesetId, setRulesetId] = useState<string | null>(null);
+  const [showNewRuleset, setShowNewRuleset] = useState(false);
+  const [newRulesetName, setNewRulesetName] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e: FormEvent) => {
@@ -14,7 +20,20 @@ export function CampaignSetup() {
     if (!name.trim()) return;
     setSubmitting(true);
     try {
-      await createCampaign({ name: name.trim(), description, setting, ruleset });
+      let finalRulesetId = rulesetId;
+
+      // Create inline ruleset if needed
+      if (showNewRuleset && newRulesetName.trim()) {
+        const rs = await createRuleset(newRulesetName.trim(), '');
+        finalRulesetId = rs.id;
+      }
+
+      await createCampaign({
+        name: name.trim(),
+        description,
+        setting,
+        ruleset_id: finalRulesetId,
+      });
     } finally {
       setSubmitting(false);
     }
@@ -57,12 +76,59 @@ export function CampaignSetup() {
 
         <div>
           <label className="block text-sm text-gray-400 mb-1">Ruleset</label>
-          <input
-            value={ruleset}
-            onChange={(e) => setRuleset(e.target.value)}
-            className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-indigo-500"
-            placeholder="D&D 5e, Pathfinder 2e, etc."
-          />
+          {!showNewRuleset ? (
+            <div className="space-y-2">
+              <select
+                value={rulesetId ?? ''}
+                onChange={(e) => setRulesetId(e.target.value || null)}
+                className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-indigo-500"
+              >
+                <option value="">None</option>
+                {rulesets.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.name}
+                  </option>
+                ))}
+              </select>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowNewRuleset(true)}
+                  className="text-xs text-indigo-400 hover:text-indigo-300"
+                >
+                  + Create new ruleset
+                </button>
+                {rulesets.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => dispatch({ type: 'SET_VIEW', view: 'ruleset-edit' })}
+                    className="text-xs text-gray-400 hover:text-gray-300"
+                  >
+                    Edit rulesets
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <input
+                value={newRulesetName}
+                onChange={(e) => setNewRulesetName(e.target.value)}
+                className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-indigo-500"
+                placeholder="Ruleset name (e.g., Mothership 1E)"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setShowNewRuleset(false);
+                  setNewRulesetName('');
+                }}
+                className="text-xs text-gray-400 hover:text-gray-300"
+              >
+                Use existing instead
+              </button>
+            </div>
+          )}
         </div>
 
         <button

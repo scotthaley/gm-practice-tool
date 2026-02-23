@@ -3,7 +3,7 @@ use crate::error::AppError;
 use crate::llm::client::LlmClient;
 use crate::llm::tools::{get_player_tools, roll_dice};
 use crate::llm::types::*;
-use crate::models::{CampaignLogEntry, GroupMemory, Player, PlayerMemory};
+use crate::models::{CampaignLogEntry, GroupMemory, Player, PlayerCharacter, PlayerMemory};
 use serde_json::json;
 use sqlx::sqlite::SqlitePool;
 use sqlx::Row;
@@ -11,9 +11,39 @@ use uuid::Uuid;
 
 pub struct PlayerContext {
     pub player: Player,
+    pub characters: Vec<PlayerCharacter>,
     pub memories: Vec<PlayerMemory>,
     pub group_memories: Vec<GroupMemory>,
     pub recent_log: Vec<CampaignLogEntry>,
+    pub ruleset_id: Option<String>,
+}
+
+fn format_character_details(characters: &[PlayerCharacter]) -> String {
+    if characters.is_empty() {
+        return "No characters assigned yet.".to_string();
+    }
+
+    characters
+        .iter()
+        .map(|c| {
+            let mut lines = vec![format!("Character: {}", c.name)];
+            if let Some(obj) = c.details.as_object() {
+                for (key, value) in obj {
+                    let display = match value {
+                        serde_json::Value::String(s) if !s.is_empty() => s.clone(),
+                        serde_json::Value::Number(n) => n.to_string(),
+                        serde_json::Value::Object(_) | serde_json::Value::Array(_) => {
+                            serde_json::to_string_pretty(value).unwrap_or_default()
+                        }
+                        _ => continue,
+                    };
+                    lines.push(format!("  {}: {}", key, display));
+                }
+            }
+            lines.join("\n")
+        })
+        .collect::<Vec<_>>()
+        .join("\n\n")
 }
 
 pub async fn generate_player_response(
@@ -23,6 +53,7 @@ pub async fn generate_player_response(
     context: &PlayerContext,
     gm_message: &str,
     campaign_setting: &str,
+    ruleset_content: &str,
 ) -> Result<(String, serde_json::Value), AppError> {
     let memories_text = if context.memories.is_empty() {
         "No personal memories yet.".to_string()
@@ -57,21 +88,24 @@ pub async fn generate_player_response(
             .join("\n")
     };
 
-    let stats_str = serde_json::to_string_pretty(&context.player.stats).unwrap_or_default();
+    let character_details = format_character_details(&context.characters);
+
+    let rules_section = if ruleset_content.is_empty() {
+        String::new()
+    } else {
+        format!("\nRules:\n{}\n", ruleset_content)
+    };
 
     let system = format!(
-        r#"You are roleplaying as {name}, a Level {level} {race} {class} in a TTRPG campaign.
+        r#"You are roleplaying as {name}, a player in a TTRPG campaign.
 
 Setting: {setting}
+{rules}
+Player: {name}
+Personality: {personality}
 
-Character Details:
-- Name: {name}
-- Race: {race}
-- Class: {class}
-- Level: {level}
-- Personality: {personality}
-- Backstory: {backstory}
-- Stats: {stats}
+Characters:
+{character_details}
 
 Your Personal Memories:
 {memories}
@@ -89,15 +123,13 @@ Guidelines:
 - Keep responses concise but flavorful (2-4 paragraphs max)
 - React based on your character's personality and knowledge
 - You may use the recall_memory tool if trying to remember something specific
-- Use store_memory for significant new information your character would remember"#,
+- Use store_memory for significant new information your character would remember
+- Use update_rules when the GM explains, clarifies, or modifies a game rule"#,
         name = context.player.name,
-        race = context.player.race,
-        class = context.player.class,
-        level = context.player.level,
         personality = context.player.personality,
-        backstory = context.player.backstory,
-        stats = stats_str,
+        character_details = character_details,
         setting = campaign_setting,
+        rules = rules_section,
         memories = memories_text,
         group_memories = group_memories_text,
         recent_log = recent_log_text,
@@ -140,7 +172,7 @@ Guidelines:
                     assistant_blocks.push(block.clone());
 
                     let result =
-                        handle_tool_call(pool, &context.player, name, input).await?;
+                        handle_tool_call(pool, &context.player, &context.ruleset_id, name, input).await?;
 
                     if let Some(calls) = all_metadata["tool_calls"].as_array_mut() {
                         calls.push(json!({
@@ -180,6 +212,7 @@ Guidelines:
 async fn handle_tool_call(
     pool: &SqlitePool,
     player: &Player,
+    ruleset_id: &Option<String>,
     tool_name: &str,
     input: &serde_json::Value,
 ) -> Result<String, AppError> {
@@ -272,6 +305,30 @@ async fn handle_tool_call(
                     .collect::<Vec<_>>()
                     .join("\n");
                 Ok(format!("Recalled memories:\n{}", text))
+            }
+        }
+        "update_rules" => {
+            let clarification = input["clarification"].as_str().unwrap_or("");
+            if clarification.is_empty() {
+                return Ok("No clarification provided".to_string());
+            }
+            match ruleset_id {
+                Some(rid) => {
+                    let now = chrono::Utc::now().to_rfc3339();
+                    let separator = format!("\n\n--- Updated {} ---\n", now);
+                    sqlx::query(
+                        "UPDATE rulesets SET content = content || ? || ?, updated_at = ? WHERE id = ?",
+                    )
+                    .bind(&separator)
+                    .bind(clarification)
+                    .bind(&now)
+                    .bind(rid)
+                    .execute(pool)
+                    .await
+                    .map_err(|e| AppError::Database(e.to_string()))?;
+                    Ok(format!("Rule updated: {}", clarification))
+                }
+                None => Ok("No ruleset associated with this campaign".to_string()),
             }
         }
         _ => Ok(format!("Unknown tool: {}", tool_name)),
