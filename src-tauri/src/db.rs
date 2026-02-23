@@ -128,5 +128,12 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), AppError> {
     .await
     .map_err(|e| AppError::Database(e.to_string()))?;
 
+    // Migrations (ignore errors for already-applied changes)
+    let _ = sqlx::raw_sql(
+        "ALTER TABLE player_characters ADD COLUMN pronouns TEXT NOT NULL DEFAULT '';",
+    )
+    .execute(pool)
+    .await;
+
     Ok(())
 }

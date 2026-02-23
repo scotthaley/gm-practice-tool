@@ -49,6 +49,7 @@ pub struct PlayerCharacter {
     pub campaign_id: String,
     pub player_id: Option<String>,
     pub name: String,
+    pub pronouns: String,
     pub details: serde_json::Value,
     pub created_at: String,
 }
@@ -117,6 +118,7 @@ pub struct CreatePlayerCharacterRequest {
     pub campaign_id: String,
     pub player_id: Option<String>,
     pub name: String,
+    pub pronouns: String,
     pub details: serde_json::Value,
 }
 

@@ -140,6 +140,32 @@ export function SettingsModal() {
               </div>
             </div>
 
+            <div>
+              <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Context</h3>
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Conversation History Messages</label>
+                <input
+                  type="number"
+                  min={0}
+                  max={50}
+                  value={config.app.context_messages}
+                  onChange={(e) =>
+                    setConfig({
+                      ...config,
+                      app: {
+                        ...config.app,
+                        context_messages: parseInt(e.target.value) || 0,
+                      },
+                    })
+                  }
+                  className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-indigo-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Number of recent messages included in LLM prompts for conversation context. Set to 0 to disable.
+                </p>
+              </div>
+            </div>
+
             <div className="flex gap-3">
               <button
                 type="submit"

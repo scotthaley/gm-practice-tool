@@ -2,7 +2,7 @@ use crate::config::AppConfig;
 use crate::error::AppError;
 use crate::llm::client::LlmClient;
 use crate::llm::types::{ApiMessage, ApiRequest, RouterResult};
-use crate::models::{Player, PlayerCharacter};
+use crate::models::{Message, Player, PlayerCharacter};
 
 fn summarize_character_details(details: &serde_json::Value) -> String {
     let mut parts = Vec::new();
@@ -34,6 +34,7 @@ pub async fn route_gm_message(
     players: &[Player],
     characters: &[PlayerCharacter],
     gm_message: &str,
+    recent_messages: &[Message],
 ) -> Result<RouterResult, AppError> {
     let mut entity_lines: Vec<String> = Vec::new();
 
@@ -116,24 +117,45 @@ If addressing a specific player by name, only include that player."#,
         player_list
     );
 
+    let mut api_messages = vec![ApiMessage {
+        role: "system".to_string(),
+        content: Some(system_prompt),
+        tool_calls: None,
+        tool_call_id: None,
+    }];
+
+    // Add recent conversation history for context
+    for msg in recent_messages {
+        let role = match msg.sender_type.as_str() {
+            "gm" => "user",
+            "player" => "assistant",
+            _ => continue,
+        };
+        let content = if msg.sender_type == "gm" {
+            format!("[GM]: {}", msg.content)
+        } else {
+            format!("[{}]: {}", msg.sender_name, msg.content)
+        };
+        api_messages.push(ApiMessage {
+            role: role.to_string(),
+            content: Some(content),
+            tool_calls: None,
+            tool_call_id: None,
+        });
+    }
+
+    api_messages.push(ApiMessage {
+        role: "user".to_string(),
+        content: Some(gm_message.to_string()),
+        tool_calls: None,
+        tool_call_id: None,
+    });
+
     let request = ApiRequest {
         model: config.models.router.clone(),
         max_tokens: config.models.parameters.router_max_tokens,
         temperature: Some(0.0),
-        messages: vec![
-            ApiMessage {
-                role: "system".to_string(),
-                content: Some(system_prompt),
-                tool_calls: None,
-                tool_call_id: None,
-            },
-            ApiMessage {
-                role: "user".to_string(),
-                content: Some(gm_message.to_string()),
-                tool_calls: None,
-                tool_call_id: None,
-            },
-        ],
+        messages: api_messages,
         tools: None,
     };
 

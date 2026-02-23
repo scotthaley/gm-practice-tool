@@ -32,6 +32,12 @@ pub struct ModelParameters {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppSettings {
     pub theme: String,
+    #[serde(default = "default_context_messages")]
+    pub context_messages: u32,
+}
+
+fn default_context_messages() -> u32 {
+    10
 }
 
 impl Default for AppConfig {
@@ -51,6 +57,7 @@ impl Default for AppConfig {
             },
             app: AppSettings {
                 theme: "dark".to_string(),
+                context_messages: 10,
             },
         }
     }

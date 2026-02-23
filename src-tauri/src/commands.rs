@@ -262,12 +262,13 @@ pub async fn create_player_character(
     let details_json = serde_json::to_string(&request.details).unwrap_or_default();
 
     sqlx::query(
-        "INSERT INTO player_characters (id, campaign_id, player_id, name, details, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+        "INSERT INTO player_characters (id, campaign_id, player_id, name, pronouns, details, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
     )
     .bind(&id)
     .bind(&request.campaign_id)
     .bind(&request.player_id)
     .bind(&request.name)
+    .bind(&request.pronouns)
     .bind(&details_json)
     .bind(&now)
     .execute(db.inner())
@@ -279,6 +280,7 @@ pub async fn create_player_character(
         campaign_id: request.campaign_id,
         player_id: request.player_id,
         name: request.name,
+        pronouns: request.pronouns,
         details: request.details,
         created_at: now,
     })
@@ -297,7 +299,7 @@ pub async fn query_player_characters(
     campaign_id: &str,
 ) -> Result<Vec<PlayerCharacter>, AppError> {
     let rows = sqlx::query(
-        "SELECT id, campaign_id, player_id, name, details, created_at FROM player_characters WHERE campaign_id = ? ORDER BY created_at",
+        "SELECT id, campaign_id, player_id, name, pronouns, details, created_at FROM player_characters WHERE campaign_id = ? ORDER BY created_at",
     )
     .bind(campaign_id)
     .fetch_all(pool)
@@ -313,6 +315,7 @@ pub async fn query_player_characters(
                 campaign_id: r.get("campaign_id"),
                 player_id: r.get("player_id"),
                 name: r.get("name"),
+                pronouns: r.get("pronouns"),
                 details: serde_json::from_str(&details_str).unwrap_or_default(),
                 created_at: r.get("created_at"),
             }
@@ -563,6 +566,40 @@ pub async fn send_gm_message(
         return Ok(new_messages);
     }
 
+    // Load recent messages for conversation context
+    let context_message_count = config.app.context_messages;
+    let recent_messages: Vec<Message> = if context_message_count > 0 {
+        let rows = sqlx::query(
+            "SELECT id, campaign_id, sender_type, sender_id, sender_name, content, metadata, timestamp FROM messages WHERE campaign_id = ? ORDER BY timestamp DESC LIMIT ?",
+        )
+        .bind(&campaign_id)
+        .bind(context_message_count)
+        .fetch_all(pool)
+        .await
+        .map_err(|e| AppError::Database(e.to_string()))?;
+
+        let mut msgs: Vec<Message> = rows
+            .iter()
+            .map(|r| {
+                let metadata_str: String = r.get("metadata");
+                Message {
+                    id: r.get("id"),
+                    campaign_id: r.get("campaign_id"),
+                    sender_type: r.get("sender_type"),
+                    sender_id: r.get("sender_id"),
+                    sender_name: r.get("sender_name"),
+                    content: r.get("content"),
+                    metadata: serde_json::from_str(&metadata_str).unwrap_or_default(),
+                    timestamp: r.get("timestamp"),
+                }
+            })
+            .collect();
+        msgs.reverse(); // Chronological order
+        msgs
+    } else {
+        Vec::new()
+    };
+
     // Route the message (using resolved text with document content)
     let route_result = route_gm_message(
         &client,
@@ -572,6 +609,7 @@ pub async fn send_gm_message(
         &players,
         &characters,
         &resolved_message,
+        &recent_messages,
     )
     .await?;
 
@@ -646,6 +684,7 @@ pub async fn send_gm_message(
             &resolved_message,
             &campaign.setting,
             &ruleset_content,
+            &recent_messages,
         )
         .await?;
 

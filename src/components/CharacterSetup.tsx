@@ -7,6 +7,7 @@ export function CharacterSetupModal() {
   const { activeCampaign, characterSetupOpen } = useAppState();
   const dispatch = useAppDispatch();
   const [name, setName] = useState('');
+  const [pronouns, setPronouns] = useState('');
   const [playerId, setPlayerId] = useState<string>('');
   const [detailsText, setDetailsText] = useState('{}');
   const [detailsError, setDetailsError] = useState('');
@@ -15,6 +16,7 @@ export function CharacterSetupModal() {
   useEffect(() => {
     if (characterSetupOpen) {
       setName('');
+      setPronouns('');
       setPlayerId('');
       setDetailsText('{}');
       setDetailsError('');
@@ -45,6 +47,7 @@ export function CharacterSetupModal() {
         campaign_id: activeCampaign.id,
         player_id: playerId || null,
         name: name.trim(),
+        pronouns: pronouns.trim(),
         details,
       });
       close();
@@ -75,18 +78,28 @@ export function CharacterSetupModal() {
               />
             </div>
             <div>
-              <label className="block text-sm text-gray-400 mb-1">Controlled By</label>
-              <select
-                value={playerId}
-                onChange={(e) => setPlayerId(e.target.value)}
+              <label className="block text-sm text-gray-400 mb-1">Pronouns</label>
+              <input
+                value={pronouns}
+                onChange={(e) => setPronouns(e.target.value)}
                 className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-indigo-500"
-              >
-                <option value="">NPC (no player)</option>
-                {players.map((p) => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </select>
+                placeholder="she/her"
+              />
             </div>
+          </div>
+
+          <div>
+            <label className="block text-sm text-gray-400 mb-1">Controlled By</label>
+            <select
+              value={playerId}
+              onChange={(e) => setPlayerId(e.target.value)}
+              className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-indigo-500"
+            >
+              <option value="">NPC (no player)</option>
+              {players.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
           </div>
 
           <div>

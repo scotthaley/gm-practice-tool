@@ -3,7 +3,7 @@ use crate::error::AppError;
 use crate::llm::client::LlmClient;
 use crate::llm::tools::{get_player_tools, roll_dice};
 use crate::llm::types::*;
-use crate::models::{CampaignLogEntry, GroupMemory, Player, PlayerCharacter, PlayerMemory};
+use crate::models::{CampaignLogEntry, GroupMemory, Message, Player, PlayerCharacter, PlayerMemory};
 use serde_json::json;
 use sqlx::sqlite::SqlitePool;
 use sqlx::Row;
@@ -27,6 +27,9 @@ fn format_character_details(characters: &[PlayerCharacter]) -> String {
         .iter()
         .map(|c| {
             let mut lines = vec![format!("Character: {}", c.name)];
+            if !c.pronouns.is_empty() {
+                lines.push(format!("  Pronouns: {}", c.pronouns));
+            }
             if let Some(obj) = c.details.as_object() {
                 for (key, value) in obj {
                     let display = match value {
@@ -54,6 +57,7 @@ pub async fn generate_player_response(
     gm_message: &str,
     campaign_setting: &str,
     ruleset_content: &str,
+    recent_messages: &[Message],
 ) -> Result<(String, serde_json::Value), AppError> {
     let memories_text = if context.memories.is_empty() {
         "No personal memories yet.".to_string()
@@ -135,20 +139,40 @@ Guidelines:
         recent_log = recent_log_text,
     );
 
-    let mut messages = vec![
-        ApiMessage {
-            role: "system".to_string(),
-            content: Some(system_prompt.clone()),
+    let mut messages = vec![ApiMessage {
+        role: "system".to_string(),
+        content: Some(system_prompt.clone()),
+        tool_calls: None,
+        tool_call_id: None,
+    }];
+
+    // Add recent conversation history for context
+    for msg in recent_messages {
+        let role = match msg.sender_type.as_str() {
+            "gm" => "user",
+            "player" => "assistant",
+            _ => continue,
+        };
+        let content = if msg.sender_type == "gm" {
+            format!("[GM]: {}", msg.content)
+        } else {
+            format!("[{}]: {}", msg.sender_name, msg.content)
+        };
+        messages.push(ApiMessage {
+            role: role.to_string(),
+            content: Some(content),
             tool_calls: None,
             tool_call_id: None,
-        },
-        ApiMessage {
-            role: "user".to_string(),
-            content: Some(format!("[GM]: {}", gm_message)),
-            tool_calls: None,
-            tool_call_id: None,
-        },
-    ];
+        });
+    }
+
+    // Add the current GM message
+    messages.push(ApiMessage {
+        role: "user".to_string(),
+        content: Some(format!("[GM]: {}", gm_message)),
+        tool_calls: None,
+        tool_call_id: None,
+    });
 
     let tools = get_player_tools();
     let mut all_metadata = json!({ "tool_calls": [] });
@@ -243,19 +267,33 @@ async fn handle_tool_call(
             let notation = input["notation"].as_str().unwrap_or("1d20");
             let reason = input["reason"].as_str().unwrap_or("unknown");
             match roll_dice(notation) {
-                Ok(result) => Ok(format!(
-                    "Rolling {} for {}: [{}] {} modifier = {} total",
-                    result.notation,
-                    reason,
-                    result
+                Ok(result) => {
+                    let rolls_str = result
                         .rolls
                         .iter()
                         .map(|r| r.to_string())
                         .collect::<Vec<_>>()
-                        .join(", "),
-                    if result.modifier >= 0 { "+" } else { "" },
-                    result.total
-                )),
+                        .join(", ");
+                    if result.modifier != 0 {
+                        Ok(format!(
+                            "Rolling {} for {}: [{}] {} {} = {}",
+                            result.notation,
+                            reason,
+                            rolls_str,
+                            if result.modifier >= 0 { "+" } else { "-" },
+                            result.modifier.unsigned_abs(),
+                            result.total
+                        ))
+                    } else {
+                        Ok(format!(
+                            "Rolling {} for {}: [{}] = {}",
+                            result.notation,
+                            reason,
+                            rolls_str,
+                            result.total
+                        ))
+                    }
+                }
                 Err(e) => Ok(format!("Failed to roll dice: {}", e)),
             }
         }

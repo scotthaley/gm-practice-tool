@@ -30,6 +30,7 @@ export interface PlayerCharacter {
   campaign_id: string;
   player_id: string | null;
   name: string;
+  pronouns: string;
   details: Record<string, unknown>;
   created_at: string;
 }
@@ -89,6 +90,7 @@ export interface AppConfig {
   };
   app: {
     theme: string;
+    context_messages: number;
   };
 }
 
@@ -110,6 +112,7 @@ export interface CreatePlayerCharacterRequest {
   campaign_id: string;
   player_id: string | null;
   name: string;
+  pronouns: string;
   details: Record<string, unknown>;
 }
 
