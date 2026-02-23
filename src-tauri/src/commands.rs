@@ -3,6 +3,7 @@ use crate::error::AppError;
 use crate::llm::client::LlmClient;
 use crate::llm::memory;
 use crate::llm::player::{generate_player_response, PlayerContext};
+use crate::llm::puppeteer::determine_player_style;
 use crate::llm::router::route_gm_message;
 use crate::models::*;
 use sqlx::sqlite::SqlitePool;
@@ -632,14 +633,6 @@ pub async fn send_gm_message(
             None => continue,
         };
 
-        // Emit typing indicator
-        let _ = app_handle.emit("gm:player_typing", PlayerTypingEvent {
-            campaign_id: campaign_id.clone(),
-            player_id: player.id.clone(),
-            player_name: player.name.clone(),
-            player_color: player.color.clone(),
-        });
-
         let player_characters: Vec<PlayerCharacter> = characters
             .iter()
             .filter(|c| c.player_id.as_deref() == Some(&player.id))
@@ -651,6 +644,38 @@ pub async fn send_gm_message(
         let group_memories = memory::get_group_memories(pool, &campaign_id, 10).await?;
         let recent_log = memory::get_recent_log(pool, &campaign_id, 10).await?;
 
+        // Load fresh recent messages so each player sees previous players' responses
+        let recent_messages: Vec<Message> = if context_message_count > 0 {
+            load_recent_messages(pool, &campaign_id, context_message_count).await?
+        } else {
+            Vec::new()
+        };
+
+        // Puppeteer: determine response style for this player
+        let style = determine_player_style(
+            &client,
+            &config,
+            &player,
+            &player_characters,
+            &resolved_message,
+            &recent_messages,
+            &route_result.log_type,
+        )
+        .await;
+
+        // Apply hesitation delay before typing indicator
+        if style.hesitation_ms > 0 {
+            tokio::time::sleep(std::time::Duration::from_millis(style.hesitation_ms)).await;
+        }
+
+        // Emit typing indicator (after hesitation)
+        let _ = app_handle.emit("gm:player_typing", PlayerTypingEvent {
+            campaign_id: campaign_id.clone(),
+            player_id: player.id.clone(),
+            player_name: player.name.clone(),
+            player_color: player.color.clone(),
+        });
+
         let context = PlayerContext {
             player: player.clone(),
             characters: player_characters,
@@ -658,13 +683,6 @@ pub async fn send_gm_message(
             group_memories,
             recent_log,
             ruleset_id: campaign.ruleset_id.clone(),
-        };
-
-        // Load fresh recent messages so each player sees previous players' responses
-        let recent_messages: Vec<Message> = if context_message_count > 0 {
-            load_recent_messages(pool, &campaign_id, context_message_count).await?
-        } else {
-            Vec::new()
         };
 
         let result = generate_player_response(
@@ -676,11 +694,17 @@ pub async fn send_gm_message(
             &campaign.setting,
             &ruleset_content,
             &recent_messages,
+            &style,
         )
         .await;
 
         match result {
-            Ok((response_text, metadata, prompt_data, llm_response)) => {
+            Ok((response_text, mut metadata, prompt_data, llm_response)) => {
+                // Include puppeteer style in metadata for debugging
+                if let Some(obj) = metadata.as_object_mut() {
+                    obj.insert("puppeteer_style".to_string(), serde_json::to_value(&style).unwrap_or_default());
+                }
+
                 // Store player message
                 let msg_id = Uuid::new_v4().to_string();
                 let msg_now = chrono::Utc::now().to_rfc3339();

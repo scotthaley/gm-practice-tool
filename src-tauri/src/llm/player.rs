@@ -58,6 +58,7 @@ pub async fn generate_player_response(
     campaign_setting: &str,
     ruleset_content: &str,
     recent_messages: &[Message],
+    style: &PuppeteerResult,
 ) -> Result<(String, serde_json::Value, String, String), AppError> {
     let memories_text = if context.memories.is_empty() {
         "No personal memories yet.".to_string()
@@ -120,11 +121,17 @@ Shared Group Knowledge:
 Recent Events:
 {recent_log}
 
+Response Style:
+- Casualness: {casual_level} (low=formal, medium=natural, high=slang/casual)
+- Brevity: {brevity} (low=detailed, medium=moderate, high=terse)
+- Emotional intensity: {emotional_intensity} (restrained/moderate/intense)
+- Action bias: {action_bias} (passive=wait for prompts, balanced=mix, proactive=take initiative)
+
 Guidelines:
 - Stay in character at all times
 - Respond naturally to the GM's narration
 - Use tools when appropriate (roll dice for checks, store important memories)
-- Keep responses concise but flavorful (2-4 paragraphs max)
+- Adjust response length based on your style directive above
 - React based on your character's personality and knowledge
 - You may use the recall_memory tool if trying to remember something specific
 - Use store_memory for significant new information your character would remember
@@ -138,6 +145,10 @@ Guidelines:
         memories = memories_text,
         group_memories = group_memories_text,
         recent_log = recent_log_text,
+        casual_level = style.casual_level,
+        brevity = style.brevity,
+        emotional_intensity = style.emotional_intensity,
+        action_bias = style.action_bias,
     );
 
     let mut messages = vec![ApiMessage {

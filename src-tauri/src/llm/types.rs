@@ -95,6 +95,29 @@ pub struct RouterResult {
     pub group_memories: Vec<String>,
 }
 
+// --- Puppeteer result (style directives for player responses) ---
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PuppeteerResult {
+    pub hesitation_ms: u64,
+    pub casual_level: String,
+    pub brevity: String,
+    pub emotional_intensity: String,
+    pub action_bias: String,
+}
+
+impl Default for PuppeteerResult {
+    fn default() -> Self {
+        Self {
+            hesitation_ms: 500,
+            casual_level: "medium".to_string(),
+            brevity: "medium".to_string(),
+            emotional_intensity: "moderate".to_string(),
+            action_bias: "balanced".to_string(),
+        }
+    }
+}
+
 // --- API error types (OpenAI-compatible) ---
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
