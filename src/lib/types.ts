@@ -146,6 +146,11 @@ export interface UpdateDocumentRequest {
   content: string;
 }
 
+export interface MessagePromptData {
+  prompt_data: string;
+  llm_response: string;
+}
+
 export type AppView = 'home' | 'chat' | 'campaign-setup' | 'ruleset-edit';
 
 // Event payloads from Tauri backend

@@ -680,13 +680,13 @@ pub async fn send_gm_message(
         .await;
 
         match result {
-            Ok((response_text, metadata)) => {
+            Ok((response_text, metadata, prompt_data, llm_response)) => {
                 // Store player message
                 let msg_id = Uuid::new_v4().to_string();
                 let msg_now = chrono::Utc::now().to_rfc3339();
                 let metadata_str = serde_json::to_string(&metadata).unwrap_or_default();
                 sqlx::query(
-                    "INSERT INTO messages (id, campaign_id, sender_type, sender_id, sender_name, content, metadata, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    "INSERT INTO messages (id, campaign_id, sender_type, sender_id, sender_name, content, metadata, timestamp, prompt_data, llm_response) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 )
                 .bind(&msg_id)
                 .bind(&campaign_id)
@@ -696,6 +696,8 @@ pub async fn send_gm_message(
                 .bind(&response_text)
                 .bind(&metadata_str)
                 .bind(&msg_now)
+                .bind(&prompt_data)
+                .bind(&llm_response)
                 .execute(pool)
                 .await
                 .map_err(|e| AppError::Database(e.to_string()))?;
@@ -789,6 +791,30 @@ pub async fn delete_group_memory(db: Db<'_>, memory_id: String) -> Result<(), Ap
         .await
         .map_err(|e| AppError::Database(e.to_string()))?;
     Ok(())
+}
+
+// Prompt debug command
+#[tauri::command]
+pub async fn get_message_prompt(
+    db: Db<'_>,
+    message_id: String,
+) -> Result<serde_json::Value, AppError> {
+    let row = sqlx::query(
+        "SELECT prompt_data, llm_response FROM messages WHERE id = ?",
+    )
+    .bind(&message_id)
+    .fetch_optional(db.inner())
+    .await
+    .map_err(|e| AppError::Database(e.to_string()))?
+    .ok_or_else(|| AppError::Database("Message not found".to_string()))?;
+
+    let prompt_data: String = row.get("prompt_data");
+    let llm_response: String = row.get("llm_response");
+
+    Ok(serde_json::json!({
+        "prompt_data": prompt_data,
+        "llm_response": llm_response,
+    }))
 }
 
 // Player memory commands

@@ -135,5 +135,17 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), AppError> {
     .execute(pool)
     .await;
 
+    let _ = sqlx::raw_sql(
+        "ALTER TABLE messages ADD COLUMN prompt_data TEXT NOT NULL DEFAULT '';",
+    )
+    .execute(pool)
+    .await;
+
+    let _ = sqlx::raw_sql(
+        "ALTER TABLE messages ADD COLUMN llm_response TEXT NOT NULL DEFAULT '';",
+    )
+    .execute(pool)
+    .await;
+
     Ok(())
 }

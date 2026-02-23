@@ -10,6 +10,7 @@ import type {
   Document,
   GroupMemory,
   Message,
+  MessagePromptData,
   Player,
   PlayerCharacter,
   PlayerMemory,
@@ -119,4 +120,8 @@ export async function deleteGroupMemory(memoryId: string): Promise<void> {
 
 export async function getGroupMemories(campaignId: string): Promise<GroupMemory[]> {
   return invoke('get_group_memories', { campaignId });
+}
+
+export async function getMessagePrompt(messageId: string): Promise<MessagePromptData> {
+  return invoke('get_message_prompt', { messageId });
 }

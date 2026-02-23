@@ -90,6 +90,9 @@ function appReducer(state: AppState, action: AppAction): AppState {
     case 'ADD_MESSAGES':
       return { ...state, messages: [...state.messages, ...action.messages] };
     case 'ADD_MESSAGE':
+      if (state.messages.some((m) => m.id === action.message.id)) {
+        return state;
+      }
       return { ...state, messages: [...state.messages, action.message] };
     case 'SET_TYPING_PLAYER':
       return { ...state, typingPlayer: action.player };

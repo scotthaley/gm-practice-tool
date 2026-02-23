@@ -58,7 +58,7 @@ pub async fn generate_player_response(
     campaign_setting: &str,
     ruleset_content: &str,
     recent_messages: &[Message],
-) -> Result<(String, serde_json::Value), AppError> {
+) -> Result<(String, serde_json::Value, String, String), AppError> {
     let memories_text = if context.memories.is_empty() {
         "No personal memories yet.".to_string()
     } else {
@@ -175,6 +175,10 @@ Guidelines:
     let mut all_metadata = json!({ "tool_calls": [] });
     let mut final_text = String::new();
 
+    // Capture prompt data before the tool loop
+    let prompt_data = serde_json::to_string(&messages).unwrap_or_default();
+    let mut all_responses: Vec<serde_json::Value> = Vec::new();
+
     // Tool use loop (max 5 iterations)
     for _ in 0..5 {
         let request = ApiRequest {
@@ -186,6 +190,7 @@ Guidelines:
         };
 
         let response = client.send(&request).await?;
+        all_responses.push(serde_json::to_value(&response).unwrap_or_default());
 
         let choice = response
             .choices
@@ -249,7 +254,9 @@ Guidelines:
         }
     }
 
-    Ok((final_text, all_metadata))
+    let llm_response = serde_json::to_string(&all_responses).unwrap_or_default();
+
+    Ok((final_text, all_metadata, prompt_data, llm_response))
 }
 
 async fn handle_tool_call(

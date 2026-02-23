@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import type { Message, Player } from '../lib/types';
 import { DiceResult } from './DiceResult';
+import { PromptDebugModal } from './PromptDebugModal';
 import * as api from '../lib/api';
 import { useAppDispatch } from '../stores/appStore';
 
@@ -10,6 +12,7 @@ interface Props {
 
 export function ChatMessage({ message, players }: Props) {
   const dispatch = useAppDispatch();
+  const [showPrompt, setShowPrompt] = useState(false);
   const isGm = message.sender_type === 'gm';
   const isSystem = message.sender_type === 'system';
   const player = players.find((p) => p.id === message.sender_id);
@@ -40,13 +43,24 @@ export function ChatMessage({ message, players }: Props) {
         }`}
         style={!isGm ? { borderLeftColor: color, borderLeftWidth: '3px' } : undefined}
       >
-        <button
-          onClick={handleDelete}
-          className="absolute top-1 right-1 hidden group-hover:block text-gray-500 hover:text-red-400 text-xs px-1.5 py-0.5 rounded hover:bg-gray-700/50 transition-colors"
-          title="Delete message"
-        >
-          &times;
-        </button>
+        <div className="absolute top-1 right-1 hidden group-hover:flex items-center gap-1">
+          {!isGm && !isSystem && (
+            <button
+              onClick={() => setShowPrompt(true)}
+              className="text-gray-500 hover:text-blue-400 text-xs px-1.5 py-0.5 rounded hover:bg-gray-700/50 transition-colors"
+              title="View prompt"
+            >
+              {"{ }"}
+            </button>
+          )}
+          <button
+            onClick={handleDelete}
+            className="text-gray-500 hover:text-red-400 text-xs px-1.5 py-0.5 rounded hover:bg-gray-700/50 transition-colors"
+            title="Delete message"
+          >
+            &times;
+          </button>
+        </div>
         <div className="flex items-center gap-2 mb-1">
           <span
             className="text-xs font-semibold"
@@ -67,6 +81,12 @@ export function ChatMessage({ message, players }: Props) {
           </div>
         )}
       </div>
+      {showPrompt && (
+        <PromptDebugModal
+          messageId={message.id}
+          onClose={() => setShowPrompt(false)}
+        />
+      )}
     </div>
   );
 }

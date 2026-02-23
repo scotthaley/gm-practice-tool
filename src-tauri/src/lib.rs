@@ -47,6 +47,7 @@ pub fn run() {
             list_documents,
             update_document,
             delete_document,
+            get_message_prompt,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
