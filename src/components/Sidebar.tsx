@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAppState, useAppDispatch } from '../stores/appStore';
 import { PlayerCard } from './PlayerCard';
 import { PlayerDetailModal } from './PlayerDetailModal';
+import { GroupMemoryModal } from './GroupMemoryModal';
 import type { Player, PlayerCharacter } from '../lib/types';
 
 function CharacterCard({ character, playerName }: { character: PlayerCharacter; playerName: string | null }) {
@@ -29,6 +30,7 @@ export function Sidebar() {
   const { activeCampaign, players, playerCharacters, documents, currentView } = useAppState();
   const dispatch = useAppDispatch();
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
+  const [groupMemoryOpen, setGroupMemoryOpen] = useState(false);
 
   const inCampaign = currentView === 'chat';
 
@@ -77,6 +79,14 @@ export function Sidebar() {
               )}
             </div>
           </div>
+
+          {/* Group Memory */}
+          <button
+            onClick={() => setGroupMemoryOpen(true)}
+            className="w-full text-left px-3 py-2 rounded text-sm transition-colors text-gray-400 hover:bg-gray-700 hover:text-gray-200 border border-gray-700"
+          >
+            View Group Memory
+          </button>
 
           {/* Documents */}
           <div>
@@ -181,6 +191,12 @@ export function Sidebar() {
           player={selectedPlayer}
           campaignId={activeCampaign.id}
           onClose={() => setSelectedPlayer(null)}
+        />
+      )}
+      {groupMemoryOpen && activeCampaign && (
+        <GroupMemoryModal
+          campaignId={activeCampaign.id}
+          onClose={() => setGroupMemoryOpen(false)}
         />
       )}
     </aside>

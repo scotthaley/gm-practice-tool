@@ -1,5 +1,7 @@
 import type { Message, Player } from '../lib/types';
 import { DiceResult } from './DiceResult';
+import * as api from '../lib/api';
+import { useAppDispatch } from '../stores/appStore';
 
 interface Props {
   message: Message;
@@ -7,12 +9,18 @@ interface Props {
 }
 
 export function ChatMessage({ message, players }: Props) {
+  const dispatch = useAppDispatch();
   const isGm = message.sender_type === 'gm';
   const isSystem = message.sender_type === 'system';
   const player = players.find((p) => p.id === message.sender_id);
   const color = player?.color || '#6366f1';
 
   const diceResults = message.metadata?.tool_calls?.filter((tc) => tc.tool === 'roll_dice') || [];
+
+  const handleDelete = async () => {
+    await api.deleteMessage(message.id);
+    dispatch({ type: 'DELETE_MESSAGE', messageId: message.id });
+  };
 
   if (isSystem) {
     return (
@@ -23,15 +31,22 @@ export function ChatMessage({ message, players }: Props) {
   }
 
   return (
-    <div className={`flex ${isGm ? 'justify-end' : 'justify-start'}`}>
+    <div className={`group flex ${isGm ? 'justify-end' : 'justify-start'}`}>
       <div
-        className={`max-w-[75%] rounded-lg px-4 py-3 ${
+        className={`relative max-w-[75%] rounded-lg px-4 py-3 ${
           isGm
             ? 'bg-indigo-600/20 border border-indigo-500/30'
             : 'bg-gray-800 border border-gray-700'
         }`}
         style={!isGm ? { borderLeftColor: color, borderLeftWidth: '3px' } : undefined}
       >
+        <button
+          onClick={handleDelete}
+          className="absolute top-1 right-1 hidden group-hover:block text-gray-500 hover:text-red-400 text-xs px-1.5 py-0.5 rounded hover:bg-gray-700/50 transition-colors"
+          title="Delete message"
+        >
+          &times;
+        </button>
         <div className="flex items-center gap-2 mb-1">
           <span
             className="text-xs font-semibold"

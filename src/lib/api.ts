@@ -8,6 +8,7 @@ import type {
   CreatePlayerRequest,
   CreatePlayerCharacterRequest,
   Document,
+  GroupMemory,
   Message,
   Player,
   PlayerCharacter,
@@ -102,4 +103,20 @@ export async function updateDocument(request: UpdateDocumentRequest): Promise<Do
 
 export async function deleteDocument(documentId: string): Promise<void> {
   return invoke('delete_document', { documentId });
+}
+
+export async function deleteMessage(messageId: string): Promise<void> {
+  return invoke('delete_message', { messageId });
+}
+
+export async function deletePlayerMemory(memoryId: string): Promise<void> {
+  return invoke('delete_player_memory', { memoryId });
+}
+
+export async function deleteGroupMemory(memoryId: string): Promise<void> {
+  return invoke('delete_group_memory', { memoryId });
+}
+
+export async function getGroupMemories(campaignId: string): Promise<GroupMemory[]> {
+  return invoke('get_group_memories', { campaignId });
 }

@@ -722,6 +722,37 @@ pub async fn send_gm_message(
     Ok(new_messages)
 }
 
+// Delete commands
+#[tauri::command]
+pub async fn delete_message(db: Db<'_>, message_id: String) -> Result<(), AppError> {
+    sqlx::query("DELETE FROM messages WHERE id = ?")
+        .bind(&message_id)
+        .execute(db.inner())
+        .await
+        .map_err(|e| AppError::Database(e.to_string()))?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn delete_player_memory(db: Db<'_>, memory_id: String) -> Result<(), AppError> {
+    sqlx::query("DELETE FROM player_memory WHERE id = ?")
+        .bind(&memory_id)
+        .execute(db.inner())
+        .await
+        .map_err(|e| AppError::Database(e.to_string()))?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn delete_group_memory(db: Db<'_>, memory_id: String) -> Result<(), AppError> {
+    sqlx::query("DELETE FROM group_memory WHERE id = ?")
+        .bind(&memory_id)
+        .execute(db.inner())
+        .await
+        .map_err(|e| AppError::Database(e.to_string()))?;
+    Ok(())
+}
+
 // Player memory commands
 #[tauri::command]
 pub async fn get_player_memories(
@@ -730,6 +761,14 @@ pub async fn get_player_memories(
     campaign_id: String,
 ) -> Result<Vec<PlayerMemory>, AppError> {
     memory::get_player_memories(db.inner(), &player_id, &campaign_id, 50).await
+}
+
+#[tauri::command]
+pub async fn get_group_memories(
+    db: Db<'_>,
+    campaign_id: String,
+) -> Result<Vec<GroupMemory>, AppError> {
+    memory::get_group_memories(db.inner(), &campaign_id, 50).await
 }
 
 // Campaign log commands

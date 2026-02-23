@@ -75,6 +75,15 @@ export interface PlayerMemory {
   created_at: string;
 }
 
+export interface GroupMemory {
+  id: string;
+  campaign_id: string;
+  content: string;
+  memory_type: string;
+  importance: number;
+  created_at: string;
+}
+
 export interface AppConfig {
   api: {
     groq_api_key: string;

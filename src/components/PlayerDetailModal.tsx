@@ -21,6 +21,11 @@ export function PlayerDetailModal({
     });
   }, [player.id, campaignId]);
 
+  const handleDeleteMemory = async (memoryId: string) => {
+    await api.deletePlayerMemory(memoryId);
+    setMemories((prev) => prev.filter((m) => m.id !== memoryId));
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
@@ -51,8 +56,17 @@ export function PlayerDetailModal({
             ) : (
               <div className="space-y-2">
                 {memories.map((m) => (
-                  <div key={m.id} className="rounded border border-gray-700 bg-gray-800/50 px-3 py-2">
-                    <p className="text-sm text-gray-300">{m.content}</p>
+                  <div key={m.id} className="group rounded border border-gray-700 bg-gray-800/50 px-3 py-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-sm text-gray-300">{m.content}</p>
+                      <button
+                        onClick={() => handleDeleteMemory(m.id)}
+                        className="hidden group-hover:block shrink-0 text-gray-500 hover:text-red-400 text-xs px-1 transition-colors"
+                        title="Delete memory"
+                      >
+                        &times;
+                      </button>
+                    </div>
                     <div className="flex items-center gap-2 mt-1">
                       <span className="text-xs text-gray-500">{m.memory_type}</span>
                       <span className="text-xs text-gray-600">importance: {m.importance.toFixed(1)}</span>

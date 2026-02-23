@@ -44,7 +44,8 @@ type AppAction =
   | { type: 'UPDATE_DOCUMENT'; document: Document }
   | { type: 'DELETE_DOCUMENT'; documentId: string }
   | { type: 'SET_DOCUMENT_MODAL_OPEN'; open: boolean }
-  | { type: 'SET_EDITING_DOCUMENT'; document: Document | null };
+  | { type: 'SET_EDITING_DOCUMENT'; document: Document | null }
+  | { type: 'DELETE_MESSAGE'; messageId: string };
 
 const initialState: AppState = {
   campaigns: [],
@@ -132,6 +133,8 @@ function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, documentModalOpen: action.open };
     case 'SET_EDITING_DOCUMENT':
       return { ...state, editingDocument: action.document };
+    case 'DELETE_MESSAGE':
+      return { ...state, messages: state.messages.filter((m) => m.id !== action.messageId) };
     default:
       return state;
   }
