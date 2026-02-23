@@ -125,6 +125,14 @@ export interface CreatePlayerCharacterRequest {
   details: Record<string, unknown>;
 }
 
+export interface UpdatePlayerCharacterRequest {
+  id: string;
+  name: string;
+  pronouns: string;
+  player_id: string | null;
+  details: Record<string, unknown>;
+}
+
 export interface Document {
   id: string;
   campaign_id: string;

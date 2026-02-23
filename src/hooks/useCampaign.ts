@@ -1,7 +1,7 @@
 import { useCallback, useEffect } from 'react';
 import { useAppState, useAppDispatch } from '../stores/appStore';
 import * as api from '../lib/api';
-import type { CreateCampaignRequest, CreateDocumentRequest, CreatePlayerRequest, CreatePlayerCharacterRequest, UpdateDocumentRequest } from '../lib/types';
+import type { CreateCampaignRequest, CreateDocumentRequest, CreatePlayerRequest, CreatePlayerCharacterRequest, UpdateDocumentRequest, UpdatePlayerCharacterRequest } from '../lib/types';
 
 export function useCampaign() {
   const state = useAppState();
@@ -84,6 +84,33 @@ export function useCampaign() {
     [dispatch],
   );
 
+  const updatePlayerCharacter = useCallback(
+    async (request: UpdatePlayerCharacterRequest) => {
+      try {
+        const playerCharacter = await api.updatePlayerCharacter(request);
+        dispatch({ type: 'UPDATE_PLAYER_CHARACTER', playerCharacter });
+        return playerCharacter;
+      } catch (e) {
+        dispatch({ type: 'SET_ERROR', error: String(e) });
+        throw e;
+      }
+    },
+    [dispatch],
+  );
+
+  const deletePlayerCharacter = useCallback(
+    async (characterId: string) => {
+      try {
+        await api.deletePlayerCharacter(characterId);
+        dispatch({ type: 'DELETE_PLAYER_CHARACTER', characterId });
+      } catch (e) {
+        dispatch({ type: 'SET_ERROR', error: String(e) });
+        throw e;
+      }
+    },
+    [dispatch],
+  );
+
   const createDocument = useCallback(
     async (request: CreateDocumentRequest) => {
       try {
@@ -139,6 +166,8 @@ export function useCampaign() {
     createCampaign,
     createPlayer,
     createPlayerCharacter,
+    updatePlayerCharacter,
+    deletePlayerCharacter,
     createDocument,
     updateDocument,
     deleteDocument,

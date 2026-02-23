@@ -35,6 +35,8 @@ pub fn run() {
             list_players,
             create_player_character,
             list_player_characters,
+            update_player_character,
+            delete_player_character,
             get_messages,
             send_gm_message,
             get_campaign_log,

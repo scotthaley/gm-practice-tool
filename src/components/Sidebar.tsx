@@ -5,14 +5,17 @@ import { PlayerDetailModal } from './PlayerDetailModal';
 import { GroupMemoryModal } from './GroupMemoryModal';
 import type { Player, PlayerCharacter } from '../lib/types';
 
-function CharacterCard({ character, playerName }: { character: PlayerCharacter; playerName: string | null }) {
+function CharacterCard({ character, playerName, onClick }: { character: PlayerCharacter; playerName: string | null; onClick: () => void }) {
   const race = character.details.race as string | undefined;
   const charClass = character.details.class as string | undefined;
   const level = character.details.level as number | undefined;
   const summary = [race, charClass, level ? `L${level}` : null].filter(Boolean).join(' ');
 
   return (
-    <div className="rounded border border-gray-700 bg-gray-800/50 px-3 py-2">
+    <button
+      onClick={onClick}
+      className="w-full text-left rounded border border-gray-700 bg-gray-800/50 px-3 py-2 hover:border-gray-600 transition-colors"
+    >
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium text-gray-200">{character.name}</span>
         {playerName ? (
@@ -22,7 +25,7 @@ function CharacterCard({ character, playerName }: { character: PlayerCharacter; 
         )}
       </div>
       {summary && <p className="text-xs text-gray-500 mt-0.5">{summary}</p>}
-    </div>
+    </button>
   );
 }
 
@@ -139,6 +142,10 @@ export function Sidebar() {
                   key={c.id}
                   character={c}
                   playerName={getPlayerName(c.player_id)}
+                  onClick={() => {
+                    dispatch({ type: 'SET_EDITING_CHARACTER', character: c });
+                    dispatch({ type: 'SET_CHARACTER_SETUP_OPEN', open: true });
+                  }}
                 />
               ))}
               {playerCharacters.length === 0 && (

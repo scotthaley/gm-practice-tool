@@ -9,6 +9,12 @@ export function useChat() {
   const dispatch = useAppDispatch();
   const listenersRef = useRef<UnlistenFn[]>([]);
   const cancelledRef = useRef(false);
+  const campaignIdRef = useRef<string | null>(null);
+
+  // Keep ref in sync with active campaign
+  useEffect(() => {
+    campaignIdRef.current = state.activeCampaign?.id ?? null;
+  }, [state.activeCampaign]);
 
   useEffect(() => {
     cancelledRef.current = false;
@@ -25,9 +31,19 @@ export function useChat() {
         listen<MessageEvent>('gm:player_response', (event) => {
           dispatch({ type: 'ADD_MESSAGE', message: event.payload.message });
         }),
-        listen<GenerationCompleteEvent>('gm:generation_complete', () => {
+        listen<GenerationCompleteEvent>('gm:generation_complete', async () => {
           dispatch({ type: 'SET_TYPING_PLAYER', player: null });
           dispatch({ type: 'SET_LOADING', loading: false });
+          // Re-fetch characters in case LLM tools created/updated any
+          const cid = campaignIdRef.current;
+          if (cid) {
+            try {
+              const playerCharacters = await api.listPlayerCharacters(cid);
+              dispatch({ type: 'SET_PLAYER_CHARACTERS', playerCharacters });
+            } catch {
+              // Non-critical; ignore
+            }
+          }
         }),
         listen<GenerationErrorEvent>('gm:generation_error', (event) => {
           dispatch({ type: 'SET_ERROR', error: event.payload.error });

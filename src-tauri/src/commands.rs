@@ -295,6 +295,55 @@ pub async fn list_player_characters(
     query_player_characters(db.inner(), &campaign_id).await
 }
 
+#[tauri::command]
+pub async fn update_player_character(
+    db: Db<'_>,
+    request: UpdatePlayerCharacterRequest,
+) -> Result<PlayerCharacter, AppError> {
+    let details_json = serde_json::to_string(&request.details).unwrap_or_default();
+
+    sqlx::query(
+        "UPDATE player_characters SET name = ?, pronouns = ?, player_id = ?, details = ? WHERE id = ?",
+    )
+    .bind(&request.name)
+    .bind(&request.pronouns)
+    .bind(&request.player_id)
+    .bind(&details_json)
+    .bind(&request.id)
+    .execute(db.inner())
+    .await
+    .map_err(|e| AppError::Database(e.to_string()))?;
+
+    let row = sqlx::query(
+        "SELECT id, campaign_id, player_id, name, pronouns, details, created_at FROM player_characters WHERE id = ?",
+    )
+    .bind(&request.id)
+    .fetch_one(db.inner())
+    .await
+    .map_err(|e| AppError::Database(e.to_string()))?;
+
+    let details_str: String = row.get("details");
+    Ok(PlayerCharacter {
+        id: row.get("id"),
+        campaign_id: row.get("campaign_id"),
+        player_id: row.get("player_id"),
+        name: row.get("name"),
+        pronouns: row.get("pronouns"),
+        details: serde_json::from_str(&details_str).unwrap_or_default(),
+        created_at: row.get("created_at"),
+    })
+}
+
+#[tauri::command]
+pub async fn delete_player_character(db: Db<'_>, character_id: String) -> Result<(), AppError> {
+    sqlx::query("DELETE FROM player_characters WHERE id = ?")
+        .bind(&character_id)
+        .execute(db.inner())
+        .await
+        .map_err(|e| AppError::Database(e.to_string()))?;
+    Ok(())
+}
+
 pub async fn query_player_characters(
     pool: &SqlitePool,
     campaign_id: &str,

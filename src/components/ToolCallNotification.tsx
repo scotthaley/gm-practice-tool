@@ -1,0 +1,20 @@
+import type { ToolCall } from '../lib/types';
+
+const TOOL_CONFIG: Record<string, { icon: string; label: string; field: string }> = {
+  store_memory: { icon: '\u{1F4AD}', label: 'Committed to memory', field: 'content' },
+  update_rules: { icon: '\u{1F4DC}', label: 'Rule updated', field: 'clarification' },
+  add_campaign_log: { icon: '\u{1F4DD}', label: 'Log entry added', field: 'summary' },
+};
+
+export function ToolCallNotification({ toolCall }: { toolCall: ToolCall }) {
+  const config = TOOL_CONFIG[toolCall.tool];
+  if (!config) return null;
+
+  const detail = (toolCall.input[config.field] as string) || toolCall.result;
+
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-700/30 border border-gray-600/50 rounded text-xs text-gray-400">
+      {config.icon} {config.label}: {detail}
+    </span>
+  );
+}

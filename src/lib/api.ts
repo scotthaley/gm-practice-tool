@@ -16,6 +16,7 @@ import type {
   PlayerMemory,
   Ruleset,
   UpdateDocumentRequest,
+  UpdatePlayerCharacterRequest,
 } from './types';
 
 export async function getConfig(): Promise<AppConfig> {
@@ -52,6 +53,14 @@ export async function createPlayerCharacter(request: CreatePlayerCharacterReques
 
 export async function listPlayerCharacters(campaignId: string): Promise<PlayerCharacter[]> {
   return invoke('list_player_characters', { campaignId });
+}
+
+export async function updatePlayerCharacter(request: UpdatePlayerCharacterRequest): Promise<PlayerCharacter> {
+  return invoke('update_player_character', { request });
+}
+
+export async function deletePlayerCharacter(characterId: string): Promise<void> {
+  return invoke('delete_player_character', { characterId });
 }
 
 export async function getMessages(campaignId: string): Promise<Message[]> {

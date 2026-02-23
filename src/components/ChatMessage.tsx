@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Message, Player } from '../lib/types';
 import { DiceResult } from './DiceResult';
+import { ToolCallNotification } from './ToolCallNotification';
 import { PromptDebugModal } from './PromptDebugModal';
 import * as api from '../lib/api';
 import { useAppDispatch } from '../stores/appStore';
@@ -19,6 +20,8 @@ export function ChatMessage({ message, players }: Props) {
   const color = player?.color || '#6366f1';
 
   const diceResults = message.metadata?.tool_calls?.filter((tc) => tc.tool === 'roll_dice') || [];
+  const notificationTools = ['store_memory', 'update_rules', 'add_campaign_log'];
+  const toolNotifications = message.metadata?.tool_calls?.filter((tc) => notificationTools.includes(tc.tool)) || [];
 
   const handleDelete = async () => {
     await api.deleteMessage(message.id);
@@ -77,6 +80,13 @@ export function ChatMessage({ message, players }: Props) {
           <div className="mt-2 space-y-1">
             {diceResults.map((dr, i) => (
               <DiceResult key={i} result={dr.result} />
+            ))}
+          </div>
+        )}
+        {toolNotifications.length > 0 && (
+          <div className="mt-2 space-y-1">
+            {toolNotifications.map((tc, i) => (
+              <ToolCallNotification key={i} toolCall={tc} />
             ))}
           </div>
         )}

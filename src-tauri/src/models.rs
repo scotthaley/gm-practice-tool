@@ -133,6 +133,15 @@ pub struct Document {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdatePlayerCharacterRequest {
+    pub id: String,
+    pub name: String,
+    pub pronouns: String,
+    pub player_id: Option<String>,
+    pub details: serde_json::Value,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateDocumentRequest {
     pub campaign_id: String,
     pub name: String,

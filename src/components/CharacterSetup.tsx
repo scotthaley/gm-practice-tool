@@ -3,8 +3,8 @@ import { useCampaign } from '../hooks/useCampaign';
 import { useAppState, useAppDispatch } from '../stores/appStore';
 
 export function CharacterSetupModal() {
-  const { createPlayerCharacter, players } = useCampaign();
-  const { activeCampaign, characterSetupOpen } = useAppState();
+  const { createPlayerCharacter, updatePlayerCharacter, deletePlayerCharacter, players } = useCampaign();
+  const { activeCampaign, characterSetupOpen, editingCharacter } = useAppState();
   const dispatch = useAppDispatch();
   const [name, setName] = useState('');
   const [pronouns, setPronouns] = useState('');
@@ -13,19 +13,31 @@ export function CharacterSetupModal() {
   const [detailsError, setDetailsError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  const isEditing = editingCharacter !== null;
+
   useEffect(() => {
     if (characterSetupOpen) {
-      setName('');
-      setPronouns('');
-      setPlayerId('');
-      setDetailsText('{}');
+      if (editingCharacter) {
+        setName(editingCharacter.name);
+        setPronouns(editingCharacter.pronouns);
+        setPlayerId(editingCharacter.player_id ?? '');
+        setDetailsText(JSON.stringify(editingCharacter.details, null, 2));
+      } else {
+        setName('');
+        setPronouns('');
+        setPlayerId('');
+        setDetailsText('{}');
+      }
       setDetailsError('');
     }
-  }, [characterSetupOpen]);
+  }, [characterSetupOpen, editingCharacter]);
 
   if (!characterSetupOpen || !activeCampaign) return null;
 
-  const close = () => dispatch({ type: 'SET_CHARACTER_SETUP_OPEN', open: false });
+  const close = () => {
+    dispatch({ type: 'SET_CHARACTER_SETUP_OPEN', open: false });
+    dispatch({ type: 'SET_EDITING_CHARACTER', character: null });
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -43,13 +55,23 @@ export function CharacterSetupModal() {
     }
     setSubmitting(true);
     try {
-      await createPlayerCharacter({
-        campaign_id: activeCampaign.id,
-        player_id: playerId || null,
-        name: name.trim(),
-        pronouns: pronouns.trim(),
-        details,
-      });
+      if (isEditing) {
+        await updatePlayerCharacter({
+          id: editingCharacter.id,
+          name: name.trim(),
+          pronouns: pronouns.trim(),
+          player_id: playerId || null,
+          details,
+        });
+      } else {
+        await createPlayerCharacter({
+          campaign_id: activeCampaign.id,
+          player_id: playerId || null,
+          name: name.trim(),
+          pronouns: pronouns.trim(),
+          details,
+        });
+      }
       close();
     } finally {
       setSubmitting(false);
@@ -61,7 +83,7 @@ export function CharacterSetupModal() {
       <div className="absolute inset-0 bg-black/60" onClick={close} />
       <div className="relative bg-gray-900 border border-gray-700 rounded-lg shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-4 border-b border-gray-700">
-          <h2 className="text-lg font-bold">Add Character</h2>
+          <h2 className="text-lg font-bold">{isEditing ? 'Edit Character' : 'Add Character'}</h2>
           <button onClick={close} className="text-gray-400 hover:text-gray-200 text-xl leading-none">&times;</button>
         </div>
 
@@ -115,13 +137,34 @@ export function CharacterSetupModal() {
             {detailsError && <p className="text-red-400 text-xs mt-1">{detailsError}</p>}
           </div>
 
-          <button
-            type="submit"
-            disabled={!name.trim() || submitting}
-            className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-700 disabled:text-gray-500 rounded text-sm font-medium transition-colors"
-          >
-            {submitting ? 'Adding...' : 'Add Character'}
-          </button>
+          <div className={isEditing ? 'flex gap-3' : ''}>
+            {isEditing && (
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={async () => {
+                  if (!confirm(`Delete "${editingCharacter.name}"?`)) return;
+                  setSubmitting(true);
+                  try {
+                    await deletePlayerCharacter(editingCharacter.id);
+                    close();
+                  } finally {
+                    setSubmitting(false);
+                  }
+                }}
+                className="py-2 px-4 bg-red-600/20 hover:bg-red-600/40 text-red-400 disabled:opacity-50 rounded text-sm font-medium transition-colors"
+              >
+                Delete
+              </button>
+            )}
+            <button
+              type="submit"
+              disabled={!name.trim() || submitting}
+              className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-700 disabled:text-gray-500 rounded text-sm font-medium transition-colors"
+            >
+              {submitting ? (isEditing ? 'Saving...' : 'Adding...') : (isEditing ? 'Save Changes' : 'Add Character')}
+            </button>
+          </div>
         </form>
       </div>
     </div>

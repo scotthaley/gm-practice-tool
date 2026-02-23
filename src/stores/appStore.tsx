@@ -15,6 +15,7 @@ interface AppState {
   settingsOpen: boolean;
   playerSetupOpen: boolean;
   characterSetupOpen: boolean;
+  editingCharacter: PlayerCharacter | null;
   typingPlayer: { id: string; name: string; color: string } | null;
   loading: boolean;
   error: string | null;
@@ -36,6 +37,9 @@ type AppAction =
   | { type: 'SET_SETTINGS_OPEN'; open: boolean }
   | { type: 'SET_PLAYER_SETUP_OPEN'; open: boolean }
   | { type: 'SET_CHARACTER_SETUP_OPEN'; open: boolean }
+  | { type: 'SET_EDITING_CHARACTER'; character: PlayerCharacter | null }
+  | { type: 'UPDATE_PLAYER_CHARACTER'; playerCharacter: PlayerCharacter }
+  | { type: 'DELETE_PLAYER_CHARACTER'; characterId: string }
   | { type: 'SET_LOADING'; loading: boolean }
   | { type: 'SET_ERROR'; error: string | null }
   | { type: 'SET_RULESETS'; rulesets: Ruleset[] }
@@ -65,6 +69,7 @@ const initialState: AppState = {
   settingsOpen: false,
   playerSetupOpen: false,
   characterSetupOpen: false,
+  editingCharacter: null,
   loading: false,
   error: null,
 };
@@ -104,6 +109,20 @@ function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, playerSetupOpen: action.open };
     case 'SET_CHARACTER_SETUP_OPEN':
       return { ...state, characterSetupOpen: action.open };
+    case 'SET_EDITING_CHARACTER':
+      return { ...state, editingCharacter: action.character };
+    case 'UPDATE_PLAYER_CHARACTER':
+      return {
+        ...state,
+        playerCharacters: state.playerCharacters.map((c) =>
+          c.id === action.playerCharacter.id ? action.playerCharacter : c,
+        ),
+      };
+    case 'DELETE_PLAYER_CHARACTER':
+      return {
+        ...state,
+        playerCharacters: state.playerCharacters.filter((c) => c.id !== action.characterId),
+      };
     case 'SET_LOADING':
       return { ...state, loading: action.loading };
     case 'SET_ERROR':
