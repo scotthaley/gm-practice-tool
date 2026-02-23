@@ -48,6 +48,7 @@ export interface Message {
 
 export interface MessageMetadata {
   tool_calls?: ToolCall[];
+  rule_updates?: string[];
 }
 
 export interface ToolCall {

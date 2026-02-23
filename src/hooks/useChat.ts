@@ -31,6 +31,9 @@ export function useChat() {
         listen<MessageEvent>('gm:player_response', (event) => {
           dispatch({ type: 'ADD_MESSAGE', message: event.payload.message });
         }),
+        listen<MessageEvent>('gm:message_updated', (event) => {
+          dispatch({ type: 'UPDATE_MESSAGE', message: event.payload.message });
+        }),
         listen<GenerationCompleteEvent>('gm:generation_complete', async () => {
           dispatch({ type: 'SET_TYPING_PLAYER', player: null });
           dispatch({ type: 'SET_LOADING', loading: false });

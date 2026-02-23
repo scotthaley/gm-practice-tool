@@ -9,13 +9,28 @@ use sqlx::sqlite::SqlitePool;
 use sqlx::Row;
 use uuid::Uuid;
 
+fn deep_merge(base: &mut serde_json::Value, patch: &serde_json::Value) {
+    match (base, patch) {
+        (serde_json::Value::Object(base_map), serde_json::Value::Object(patch_map)) => {
+            for (key, patch_value) in patch_map {
+                let base_value = base_map
+                    .entry(key.clone())
+                    .or_insert(serde_json::Value::Null);
+                deep_merge(base_value, patch_value);
+            }
+        }
+        (base, patch) => {
+            *base = patch.clone();
+        }
+    }
+}
+
 pub struct PlayerContext {
     pub player: Player,
     pub characters: Vec<PlayerCharacter>,
     pub memories: Vec<PlayerMemory>,
     pub group_memories: Vec<GroupMemory>,
     pub recent_log: Vec<CampaignLogEntry>,
-    pub ruleset_id: Option<String>,
 }
 
 fn format_character_details(characters: &[PlayerCharacter]) -> String {
@@ -134,7 +149,6 @@ Guidelines:
 - React based on your character's personality and knowledge
 - You may use the recall_memory tool if trying to remember something specific
 - Use store_memory for significant new information your character would remember
-- Use update_rules when the GM explains, clarifies, or modifies a game rule
 - If you already have characters listed above, use update_character to modify them — do NOT use create_character to duplicate an existing character
 - Only use create_character when you have no characters yet or the GM asks you to create an additional new character
 - Do ONLY what the GM asks. If the GM says to create a character with specific fields, include only those fields — do not add extra fields, and do not push the story forward unless the GM invites you to
@@ -245,7 +259,6 @@ Guidelines:
             let result = handle_tool_call(
                 pool,
                 &context.player,
-                &context.ruleset_id,
                 &tc.function.name,
                 &input,
             )
@@ -277,7 +290,6 @@ Guidelines:
 async fn handle_tool_call(
     pool: &SqlitePool,
     player: &Player,
-    ruleset_id: &Option<String>,
     tool_name: &str,
     input: &serde_json::Value,
 ) -> Result<String, AppError> {
@@ -437,14 +449,8 @@ async fn handle_tool_call(
                     let mut existing_details: serde_json::Value =
                         serde_json::from_str(&existing_details_str).unwrap_or(json!({}));
 
-                    // Merge updates into existing details
-                    if let (Some(existing_obj), Some(updates_obj)) =
-                        (existing_details.as_object_mut(), updates.as_object())
-                    {
-                        for (key, value) in updates_obj {
-                            existing_obj.insert(key.clone(), value.clone());
-                        }
-                    }
+                    // Deep merge updates into existing details
+                    deep_merge(&mut existing_details, &updates);
 
                     let existing_pronouns: String = row.get("pronouns");
                     let pronouns_val = new_pronouns.unwrap_or(&existing_pronouns);
@@ -470,30 +476,6 @@ async fn handle_tool_call(
                     ))
                 }
                 None => Ok(format!("No character named '{}' found for this player.", char_name)),
-            }
-        }
-        "update_rules" => {
-            let clarification = input["clarification"].as_str().unwrap_or("");
-            if clarification.is_empty() {
-                return Ok("No clarification provided".to_string());
-            }
-            match ruleset_id {
-                Some(rid) => {
-                    let now = chrono::Utc::now().to_rfc3339();
-                    let separator = format!("\n\n--- Updated {} ---\n", now);
-                    sqlx::query(
-                        "UPDATE rulesets SET content = content || ? || ?, updated_at = ? WHERE id = ?",
-                    )
-                    .bind(&separator)
-                    .bind(clarification)
-                    .bind(&now)
-                    .bind(rid)
-                    .execute(pool)
-                    .await
-                    .map_err(|e| AppError::Database(e.to_string()))?;
-                    Ok(format!("Rule updated: {}", clarification))
-                }
-                None => Ok("No ruleset associated with this campaign".to_string()),
             }
         }
         _ => Ok(format!("Unknown tool: {}", tool_name)),

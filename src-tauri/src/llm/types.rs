@@ -93,6 +93,8 @@ pub struct RouterResult {
     pub log_summary: String,
     pub log_type: String,
     pub group_memories: Vec<String>,
+    #[serde(default)]
+    pub rule_updates: Vec<String>,
 }
 
 // --- Puppeteer result (style directives for player responses) ---

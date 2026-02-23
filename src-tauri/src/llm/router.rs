@@ -92,6 +92,7 @@ pub async fn route_gm_message(
 2. A brief log summary of what the GM described
 3. The log entry type (one of: narrative, combat, social, exploration, description)
 4. Any group memories worth storing (things all players would notice/know)
+5. Any rule clarifications, house rules, or rule modifications the GM is establishing
 
 Campaign setting: {}
 {}
@@ -103,11 +104,13 @@ Respond with ONLY valid JSON in this exact format:
   "target_players": ["player-id-1", "player-id-2"],
   "log_summary": "Brief summary of GM's narration",
   "log_type": "narrative",
-  "group_memories": ["Memory 1 if any"]
+  "group_memories": ["Memory 1 if any"],
+  "rule_updates": ["Rule clarification if any"]
 }}
 
 If the GM is addressing all players or describing a scene, include all player IDs.
-If addressing a specific player by name, only include that player."#,
+If addressing a specific player by name, only include that player.
+If the GM explains, clarifies, or modifies a game rule, or establishes a house rule, include it in rule_updates. Leave rule_updates as an empty array if no rules are being set or changed."#,
         campaign_setting,
         if ruleset_content.is_empty() {
             String::new()

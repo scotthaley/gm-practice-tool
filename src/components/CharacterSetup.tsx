@@ -46,7 +46,8 @@ export function CharacterSetupModal() {
     if (!name.trim()) return;
     let details: Record<string, unknown>;
     try {
-      details = JSON.parse(detailsText);
+      const sanitized = detailsText.replace(/[\u201C\u201D]/g, '"');
+      details = JSON.parse(sanitized);
       if (typeof details !== 'object' || Array.isArray(details) || details === null) {
         setDetailsError('Must be a JSON object');
         return;

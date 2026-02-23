@@ -2,7 +2,6 @@ import type { ToolCall } from '../lib/types';
 
 const TOOL_CONFIG: Record<string, { icon: string; label: string; field: string }> = {
   store_memory: { icon: '\u{1F4AD}', label: 'Committed to memory', field: 'content' },
-  update_rules: { icon: '\u{1F4DC}', label: 'Rule updated', field: 'clarification' },
   add_campaign_log: { icon: '\u{1F4DD}', label: 'Log entry added', field: 'summary' },
   create_character: { icon: '\u{1F3AD}', label: 'Character created', field: 'name' },
   update_character: { icon: '\u{1F4DD}', label: 'Character updated', field: 'character_name' },

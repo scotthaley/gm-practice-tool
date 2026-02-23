@@ -20,8 +20,9 @@ export function ChatMessage({ message, players }: Props) {
   const color = player?.color || '#6366f1';
 
   const diceResults = message.metadata?.tool_calls?.filter((tc) => tc.tool === 'roll_dice') || [];
-  const notificationTools = ['store_memory', 'update_rules', 'add_campaign_log', 'create_character', 'update_character'];
+  const notificationTools = ['store_memory', 'add_campaign_log', 'create_character', 'update_character'];
   const toolNotifications = message.metadata?.tool_calls?.filter((tc) => notificationTools.includes(tc.tool)) || [];
+  const ruleUpdates = message.metadata?.rule_updates || [];
 
   const handleDelete = async () => {
     await api.deleteMessage(message.id);
@@ -87,6 +88,15 @@ export function ChatMessage({ message, players }: Props) {
           <div className="mt-2 space-y-1">
             {toolNotifications.map((tc, i) => (
               <ToolCallNotification key={i} toolCall={tc} />
+            ))}
+          </div>
+        )}
+        {ruleUpdates.length > 0 && (
+          <div className="mt-2 space-y-1">
+            {ruleUpdates.map((rule, i) => (
+              <span key={i} className="inline-flex items-center gap-1 px-2 py-1 bg-amber-900/20 border border-amber-600/30 rounded text-xs text-amber-400">
+                {'\u{1F4DC}'} Rule updated: {rule}
+              </span>
             ))}
           </div>
         )}

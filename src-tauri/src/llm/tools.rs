@@ -77,23 +77,6 @@ pub fn get_player_tools() -> Vec<ToolDefinitionWrapper> {
         ToolDefinitionWrapper {
             tool_type: "function".to_string(),
             function: ToolDefinition {
-                name: "update_rules".to_string(),
-                description: "Append a rule clarification or update to the campaign's ruleset. Use this when the GM explains, clarifies, or modifies a game rule, or when a house rule is established during play.".to_string(),
-                parameters: json!({
-                    "type": "object",
-                    "properties": {
-                        "clarification": {
-                            "type": "string",
-                            "description": "The rule clarification, explanation, or house rule to append to the ruleset"
-                        }
-                    },
-                    "required": ["clarification"]
-                }),
-            },
-        },
-        ToolDefinitionWrapper {
-            tool_type: "function".to_string(),
-            function: ToolDefinition {
                 name: "create_character".to_string(),
                 description: "Create a new character for yourself. Use this when the GM asks you to create or build a character. Only include the fields the GM specifically requests — do not add extra fields beyond what was asked for.".to_string(),
                 parameters: json!({

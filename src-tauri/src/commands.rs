@@ -563,7 +563,7 @@ pub async fn send_gm_message(
     .map_err(|e| AppError::Database(e.to_string()))?;
 
     let gm_message = Message {
-        id: gm_msg_id,
+        id: gm_msg_id.clone(),
         campaign_id: campaign_id.clone(),
         sender_type: "gm".to_string(),
         sender_id: None,
@@ -638,6 +638,55 @@ pub async fn send_gm_message(
         &routing_messages,
     )
     .await?;
+
+    // Process rule updates from router
+    let mut applied_rule_updates: Vec<String> = Vec::new();
+    if let Some(ref rid) = campaign.ruleset_id {
+        for rule_update in &route_result.rule_updates {
+            if !rule_update.is_empty() {
+                let now = chrono::Utc::now().to_rfc3339();
+                let separator = format!("\n\n--- Updated {} ---\n", now);
+                sqlx::query(
+                    "UPDATE rulesets SET content = content || ? || ?, updated_at = ? WHERE id = ?",
+                )
+                .bind(&separator)
+                .bind(rule_update)
+                .bind(&now)
+                .bind(rid)
+                .execute(pool)
+                .await
+                .map_err(|e| AppError::Database(e.to_string()))?;
+                applied_rule_updates.push(rule_update.clone());
+            }
+        }
+    }
+
+    // Update GM message metadata with rule updates if any were applied
+    if !applied_rule_updates.is_empty() {
+        let gm_metadata = serde_json::json!({
+            "rule_updates": applied_rule_updates,
+        });
+        let gm_metadata_str = serde_json::to_string(&gm_metadata).unwrap_or_default();
+        sqlx::query("UPDATE messages SET metadata = ? WHERE id = ?")
+            .bind(&gm_metadata_str)
+            .bind(&gm_msg_id)
+            .execute(pool)
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
+
+        // Re-emit the GM message with updated metadata so the frontend picks it up
+        let updated_gm_message = Message {
+            id: gm_msg_id.clone(),
+            campaign_id: campaign_id.clone(),
+            sender_type: "gm".to_string(),
+            sender_id: None,
+            sender_name: "Game Master".to_string(),
+            content: message.clone(),
+            metadata: gm_metadata,
+            timestamp: now.clone(),
+        };
+        let _ = app_handle.emit("gm:message_updated", MessageEvent { message: updated_gm_message });
+    }
 
     // Store campaign log entry
     let log_id = Uuid::new_v4().to_string();
@@ -731,7 +780,6 @@ pub async fn send_gm_message(
             memories: player_memories,
             group_memories,
             recent_log,
-            ruleset_id: campaign.ruleset_id.clone(),
         };
 
         let result = generate_player_response(
