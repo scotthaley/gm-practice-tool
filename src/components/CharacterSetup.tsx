@@ -12,6 +12,7 @@ export function CharacterSetupModal() {
   const [detailsText, setDetailsText] = useState('{}');
   const [detailsError, setDetailsError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const isEditing = editingCharacter !== null;
 
@@ -29,6 +30,7 @@ export function CharacterSetupModal() {
         setDetailsText('{}');
       }
       setDetailsError('');
+      setConfirmDelete(false);
     }
   }, [characterSetupOpen, editingCharacter]);
 
@@ -138,12 +140,21 @@ export function CharacterSetupModal() {
           </div>
 
           <div className={isEditing ? 'flex gap-3' : ''}>
-            {isEditing && (
+            {isEditing && !confirmDelete && (
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={() => setConfirmDelete(true)}
+                className="py-2 px-4 bg-red-600/20 hover:bg-red-600/40 text-red-400 disabled:opacity-50 rounded text-sm font-medium transition-colors"
+              >
+                Delete
+              </button>
+            )}
+            {isEditing && confirmDelete && (
               <button
                 type="button"
                 disabled={submitting}
                 onClick={async () => {
-                  if (!confirm(`Delete "${editingCharacter.name}"?`)) return;
                   setSubmitting(true);
                   try {
                     await deletePlayerCharacter(editingCharacter.id);
@@ -152,9 +163,9 @@ export function CharacterSetupModal() {
                     setSubmitting(false);
                   }
                 }}
-                className="py-2 px-4 bg-red-600/20 hover:bg-red-600/40 text-red-400 disabled:opacity-50 rounded text-sm font-medium transition-colors"
+                className="py-2 px-4 bg-red-600 hover:bg-red-700 text-white disabled:opacity-50 rounded text-sm font-medium transition-colors"
               >
-                Delete
+                Confirm Delete
               </button>
             )}
             <button

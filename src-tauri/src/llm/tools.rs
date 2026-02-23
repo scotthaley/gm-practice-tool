@@ -29,7 +29,7 @@ pub fn get_player_tools() -> Vec<ToolDefinitionWrapper> {
             tool_type: "function".to_string(),
             function: ToolDefinition {
                 name: "store_memory".to_string(),
-                description: "Store an important memory or observation that your character would remember. Use this for significant events, NPC names, plot points, or things your character notices.".to_string(),
+                description: "Store a NEW memory or observation that your character would remember. Only use this for information not already present in your memories or shared group knowledge. Use for significant new events, NPC names, plot points, or things your character newly notices.".to_string(),
                 parameters: json!({
                     "type": "object",
                     "properties": {
@@ -95,7 +95,7 @@ pub fn get_player_tools() -> Vec<ToolDefinitionWrapper> {
             tool_type: "function".to_string(),
             function: ToolDefinition {
                 name: "create_character".to_string(),
-                description: "Create a new character for yourself. Use this when the GM asks you to create or build a character, or during character creation sessions.".to_string(),
+                description: "Create a new character for yourself. Use this when the GM asks you to create or build a character. Only include the fields the GM specifically requests — do not add extra fields beyond what was asked for.".to_string(),
                 parameters: json!({
                     "type": "object",
                     "properties": {
@@ -109,7 +109,7 @@ pub fn get_player_tools() -> Vec<ToolDefinitionWrapper> {
                         },
                         "details": {
                             "type": "object",
-                            "description": "Character details like race, class, level, backstory, stats, etc."
+                            "description": "Character details as requested by the GM. Only include fields the GM asked for."
                         }
                     },
                     "required": ["name"]

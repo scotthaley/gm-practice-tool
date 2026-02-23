@@ -37,9 +37,9 @@ pub async fn determine_player_style(
         r#"You determine HOW a TTRPG player would stylistically respond to the GM. Given the player's personality and the scene, output ONLY JSON with these fields:
 - hesitation_ms (0-3000): thinking pause in milliseconds. Higher for surprising/complex moments.
 - casual_level ("low"/"medium"/"high"): speech formality. "high" = slang and casual, "low" = formal.
-- brevity ("low"/"medium"/"high"): response length. "high" = very short/terse, "low" = longer/detailed.
+- brevity ("low"/"medium"/"high"): response length. "high" = very short/terse, "low" = longer/detailed. Default to "high" when the GM asks a direct question, gives specific instructions, or requests something mechanical (like character creation). Only use "low" when the scene calls for roleplay dialogue, storytelling, or emotional moments.
 - emotional_intensity ("restrained"/"moderate"/"intense"): how strongly emotions show.
-- action_bias ("passive"/"balanced"/"proactive"): whether the character waits or takes initiative.
+- action_bias ("passive"/"balanced"/"proactive"): whether the character waits or takes initiative. Default to "passive" when the GM gives specific directions — the player should do what's asked without pushing the story forward on their own.
 
 Player: {name} — {personality}
 Characters: {chars}
