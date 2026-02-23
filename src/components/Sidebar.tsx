@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { useAppState, useAppDispatch } from '../stores/appStore';
 import { PlayerCard } from './PlayerCard';
-import type { PlayerCharacter } from '../lib/types';
+import { PlayerDetailModal } from './PlayerDetailModal';
+import type { Player, PlayerCharacter } from '../lib/types';
 
 function CharacterCard({ character, playerName }: { character: PlayerCharacter; playerName: string | null }) {
   const race = character.details.race as string | undefined;
@@ -24,8 +26,9 @@ function CharacterCard({ character, playerName }: { character: PlayerCharacter; 
 }
 
 export function Sidebar() {
-  const { activeCampaign, players, playerCharacters, currentView } = useAppState();
+  const { activeCampaign, players, playerCharacters, documents, currentView } = useAppState();
   const dispatch = useAppDispatch();
+  const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
 
   const inCampaign = currentView === 'chat';
 
@@ -67,10 +70,44 @@ export function Sidebar() {
             </div>
             <div className="space-y-2">
               {players.map((p) => (
-                <PlayerCard key={p.id} player={p} />
+                <PlayerCard key={p.id} player={p} onClick={() => setSelectedPlayer(p)} />
               ))}
               {players.length === 0 && (
                 <p className="text-xs text-gray-500 px-3 py-2">No players yet</p>
+              )}
+            </div>
+          </div>
+
+          {/* Documents */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Documents</h2>
+              <button
+                onClick={() => {
+                  dispatch({ type: 'SET_EDITING_DOCUMENT', document: null });
+                  dispatch({ type: 'SET_DOCUMENT_MODAL_OPEN', open: true });
+                }}
+                className="text-xs text-indigo-400 hover:text-indigo-300"
+              >
+                + Add
+              </button>
+            </div>
+            <div className="space-y-2">
+              {documents.map((doc) => (
+                <button
+                  key={doc.id}
+                  onClick={() => {
+                    dispatch({ type: 'SET_EDITING_DOCUMENT', document: doc });
+                    dispatch({ type: 'SET_DOCUMENT_MODAL_OPEN', open: true });
+                  }}
+                  className="w-full text-left rounded border border-gray-700 bg-gray-800/50 px-3 py-2 hover:border-gray-600 transition-colors"
+                >
+                  <span className="text-sm font-medium text-gray-200">{doc.name}</span>
+                  <p className="text-xs text-gray-500 mt-0.5 truncate">{doc.content || 'Empty'}</p>
+                </button>
+              ))}
+              {documents.length === 0 && (
+                <p className="text-xs text-gray-500 px-3 py-2">No documents yet</p>
               )}
             </div>
           </div>
@@ -139,6 +176,13 @@ export function Sidebar() {
           Settings
         </button>
       </div>
+      {selectedPlayer && activeCampaign && (
+        <PlayerDetailModal
+          player={selectedPlayer}
+          campaignId={activeCampaign.id}
+          onClose={() => setSelectedPlayer(null)}
+        />
+      )}
     </aside>
   );
 }

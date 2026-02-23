@@ -38,6 +38,11 @@ pub fn run() {
             get_messages,
             send_gm_message,
             get_campaign_log,
+            get_player_memories,
+            create_document,
+            list_documents,
+            update_document,
+            delete_document,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -1,5 +1,5 @@
 import { createContext, useContext, useReducer, type Dispatch, type ReactNode } from 'react';
-import type { Campaign, Player, PlayerCharacter, Message, AppView, Ruleset } from '../lib/types';
+import type { Campaign, Player, PlayerCharacter, Message, AppView, Ruleset, Document } from '../lib/types';
 
 interface AppState {
   campaigns: Campaign[];
@@ -8,6 +8,9 @@ interface AppState {
   playerCharacters: PlayerCharacter[];
   messages: Message[];
   rulesets: Ruleset[];
+  documents: Document[];
+  documentModalOpen: boolean;
+  editingDocument: Document | null;
   currentView: AppView;
   settingsOpen: boolean;
   playerSetupOpen: boolean;
@@ -35,7 +38,13 @@ type AppAction =
   | { type: 'SET_RULESETS'; rulesets: Ruleset[] }
   | { type: 'ADD_RULESET'; ruleset: Ruleset }
   | { type: 'UPDATE_RULESET'; ruleset: Ruleset }
-  | { type: 'DELETE_RULESET'; rulesetId: string };
+  | { type: 'DELETE_RULESET'; rulesetId: string }
+  | { type: 'SET_DOCUMENTS'; documents: Document[] }
+  | { type: 'ADD_DOCUMENT'; document: Document }
+  | { type: 'UPDATE_DOCUMENT'; document: Document }
+  | { type: 'DELETE_DOCUMENT'; documentId: string }
+  | { type: 'SET_DOCUMENT_MODAL_OPEN'; open: boolean }
+  | { type: 'SET_EDITING_DOCUMENT'; document: Document | null };
 
 const initialState: AppState = {
   campaigns: [],
@@ -44,6 +53,9 @@ const initialState: AppState = {
   playerCharacters: [],
   messages: [],
   rulesets: [],
+  documents: [],
+  documentModalOpen: false,
+  editingDocument: null,
   currentView: 'home',
   settingsOpen: false,
   playerSetupOpen: false,
@@ -57,7 +69,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
     case 'SET_CAMPAIGNS':
       return { ...state, campaigns: action.campaigns };
     case 'SET_ACTIVE_CAMPAIGN':
-      return { ...state, activeCampaign: action.campaign, messages: [], players: [], playerCharacters: [] };
+      return { ...state, activeCampaign: action.campaign, messages: [], players: [], playerCharacters: [], documents: [] };
     case 'ADD_CAMPAIGN':
       return { ...state, campaigns: [...state.campaigns, action.campaign] };
     case 'SET_PLAYERS':
@@ -100,6 +112,26 @@ function appReducer(state: AppState, action: AppAction): AppState {
         ...state,
         rulesets: state.rulesets.filter((r) => r.id !== action.rulesetId),
       };
+    case 'SET_DOCUMENTS':
+      return { ...state, documents: action.documents };
+    case 'ADD_DOCUMENT':
+      return { ...state, documents: [...state.documents, action.document] };
+    case 'UPDATE_DOCUMENT':
+      return {
+        ...state,
+        documents: state.documents.map((d) =>
+          d.id === action.document.id ? action.document : d,
+        ),
+      };
+    case 'DELETE_DOCUMENT':
+      return {
+        ...state,
+        documents: state.documents.filter((d) => d.id !== action.documentId),
+      };
+    case 'SET_DOCUMENT_MODAL_OPEN':
+      return { ...state, documentModalOpen: action.open };
+    case 'SET_EDITING_DOCUMENT':
+      return { ...state, editingDocument: action.document };
     default:
       return state;
   }

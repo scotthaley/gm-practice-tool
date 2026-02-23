@@ -262,7 +262,13 @@ async fn handle_tool_call(
         "store_memory" => {
             let content = input["content"].as_str().unwrap_or("");
             let memory_type = input["memory_type"].as_str().unwrap_or("observation");
-            let importance = input["importance"].as_f64().unwrap_or(0.5);
+            let importance = match input["importance"].as_str().unwrap_or("medium") {
+                "low" => 0.25,
+                "medium" => 0.5,
+                "high" => 0.75,
+                "critical" => 1.0,
+                _ => 0.5,
+            };
             let id = Uuid::new_v4().to_string();
             let now = chrono::Utc::now().to_rfc3339();
 

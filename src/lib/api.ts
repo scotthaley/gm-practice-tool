@@ -4,12 +4,16 @@ import type {
   Campaign,
   CampaignLogEntry,
   CreateCampaignRequest,
+  CreateDocumentRequest,
   CreatePlayerRequest,
   CreatePlayerCharacterRequest,
+  Document,
   Message,
   Player,
   PlayerCharacter,
+  PlayerMemory,
   Ruleset,
+  UpdateDocumentRequest,
 } from './types';
 
 export async function getConfig(): Promise<AppConfig> {
@@ -78,4 +82,24 @@ export async function updateRuleset(request: { id: string; name: string; content
 
 export async function deleteRuleset(rulesetId: string): Promise<void> {
   return invoke('delete_ruleset', { rulesetId });
+}
+
+export async function getPlayerMemories(playerId: string, campaignId: string): Promise<PlayerMemory[]> {
+  return invoke('get_player_memories', { playerId, campaignId });
+}
+
+export async function createDocument(request: CreateDocumentRequest): Promise<Document> {
+  return invoke('create_document', { request });
+}
+
+export async function listDocuments(campaignId: string): Promise<Document[]> {
+  return invoke('list_documents', { campaignId });
+}
+
+export async function updateDocument(request: UpdateDocumentRequest): Promise<Document> {
+  return invoke('update_document', { request });
+}
+
+export async function deleteDocument(documentId: string): Promise<void> {
+  return invoke('delete_document', { documentId });
 }

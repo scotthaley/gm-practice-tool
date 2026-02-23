@@ -6,7 +6,7 @@ import { ChatInput } from './ChatInput';
 
 export function ChatView() {
   const { messages, loading, error, sendMessage } = useChat();
-  const { activeCampaign, players } = useAppState();
+  const { activeCampaign, players, documents } = useAppState();
   const dispatch = useAppDispatch();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -59,7 +59,7 @@ export function ChatView() {
       )}
 
       {/* Input */}
-      <ChatInput onSend={sendMessage} disabled={loading} />
+      <ChatInput onSend={sendMessage} disabled={loading} documents={documents} />
     </div>
   );
 }

@@ -110,7 +110,19 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), AppError> {
         CREATE INDEX IF NOT EXISTS idx_group_memory_campaign ON group_memory(campaign_id);
         CREATE INDEX IF NOT EXISTS idx_players_campaign ON players(campaign_id);
         CREATE INDEX IF NOT EXISTS idx_player_characters_player ON player_characters(player_id);
-        CREATE INDEX IF NOT EXISTS idx_player_characters_campaign ON player_characters(campaign_id);",
+        CREATE INDEX IF NOT EXISTS idx_player_characters_campaign ON player_characters(campaign_id);
+
+        CREATE TABLE IF NOT EXISTS documents (
+            id TEXT PRIMARY KEY,
+            campaign_id TEXT NOT NULL,
+            name TEXT NOT NULL,
+            content TEXT NOT NULL DEFAULT '',
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            FOREIGN KEY (campaign_id) REFERENCES campaigns(id) ON DELETE CASCADE,
+            UNIQUE(campaign_id, name)
+        );
+        CREATE INDEX IF NOT EXISTS idx_documents_campaign ON documents(campaign_id);",
     )
     .execute(pool)
     .await

@@ -43,8 +43,9 @@ pub fn get_player_tools() -> Vec<ToolDefinitionWrapper> {
                             "description": "Type of memory"
                         },
                         "importance": {
-                            "type": "number",
-                            "description": "Importance from 0.0 to 1.0 (1.0 = critical)"
+                            "type": "string",
+                            "enum": ["low", "medium", "high", "critical"],
+                            "description": "How important this memory is: low (trivial detail), medium (useful info), high (significant event), critical (game-changing)"
                         }
                     },
                     "required": ["content", "memory_type", "importance"]

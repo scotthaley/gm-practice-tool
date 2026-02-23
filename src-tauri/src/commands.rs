@@ -377,6 +377,108 @@ pub async fn query_messages(pool: &SqlitePool, campaign_id: &str) -> Result<Vec<
         .collect())
 }
 
+// Document commands
+#[tauri::command]
+pub async fn create_document(
+    db: Db<'_>,
+    request: CreateDocumentRequest,
+) -> Result<Document, AppError> {
+    let id = Uuid::new_v4().to_string();
+    let now = chrono::Utc::now().to_rfc3339();
+
+    sqlx::query(
+        "INSERT INTO documents (id, campaign_id, name, content, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+    )
+    .bind(&id)
+    .bind(&request.campaign_id)
+    .bind(&request.name)
+    .bind(&request.content)
+    .bind(&now)
+    .bind(&now)
+    .execute(db.inner())
+    .await
+    .map_err(|e| AppError::Database(e.to_string()))?;
+
+    Ok(Document {
+        id,
+        campaign_id: request.campaign_id,
+        name: request.name,
+        content: request.content,
+        created_at: now.clone(),
+        updated_at: now,
+    })
+}
+
+#[tauri::command]
+pub async fn list_documents(
+    db: Db<'_>,
+    campaign_id: String,
+) -> Result<Vec<Document>, AppError> {
+    let rows = sqlx::query(
+        "SELECT id, campaign_id, name, content, created_at, updated_at FROM documents WHERE campaign_id = ? ORDER BY name",
+    )
+    .bind(&campaign_id)
+    .fetch_all(db.inner())
+    .await
+    .map_err(|e| AppError::Database(e.to_string()))?;
+
+    Ok(rows
+        .iter()
+        .map(|r| Document {
+            id: r.get("id"),
+            campaign_id: r.get("campaign_id"),
+            name: r.get("name"),
+            content: r.get("content"),
+            created_at: r.get("created_at"),
+            updated_at: r.get("updated_at"),
+        })
+        .collect())
+}
+
+#[tauri::command]
+pub async fn update_document(
+    db: Db<'_>,
+    request: UpdateDocumentRequest,
+) -> Result<Document, AppError> {
+    let now = chrono::Utc::now().to_rfc3339();
+
+    sqlx::query("UPDATE documents SET name = ?, content = ?, updated_at = ? WHERE id = ?")
+        .bind(&request.name)
+        .bind(&request.content)
+        .bind(&now)
+        .bind(&request.id)
+        .execute(db.inner())
+        .await
+        .map_err(|e| AppError::Database(e.to_string()))?;
+
+    let row = sqlx::query(
+        "SELECT id, campaign_id, name, content, created_at, updated_at FROM documents WHERE id = ?",
+    )
+    .bind(&request.id)
+    .fetch_one(db.inner())
+    .await
+    .map_err(|e| AppError::Database(e.to_string()))?;
+
+    Ok(Document {
+        id: row.get("id"),
+        campaign_id: row.get("campaign_id"),
+        name: row.get("name"),
+        content: row.get("content"),
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+    })
+}
+
+#[tauri::command]
+pub async fn delete_document(db: Db<'_>, document_id: String) -> Result<(), AppError> {
+    sqlx::query("DELETE FROM documents WHERE id = ?")
+        .bind(&document_id)
+        .execute(db.inner())
+        .await
+        .map_err(|e| AppError::Database(e.to_string()))?;
+    Ok(())
+}
+
 // The main GM message pipeline
 #[tauri::command]
 pub async fn send_gm_message(
@@ -418,6 +520,29 @@ pub async fn send_gm_message(
         timestamp: now.clone(),
     });
 
+    // Resolve @DocName references for LLM
+    let documents = {
+        let rows = sqlx::query(
+            "SELECT name, content FROM documents WHERE campaign_id = ? ORDER BY LENGTH(name) DESC",
+        )
+        .bind(&campaign_id)
+        .fetch_all(pool)
+        .await
+        .map_err(|e| AppError::Database(e.to_string()))?;
+        rows.iter()
+            .map(|r| (r.get::<String, _>("name"), r.get::<String, _>("content")))
+            .collect::<Vec<(String, String)>>()
+    };
+
+    let mut resolved_message = message.clone();
+    for (name, content) in &documents {
+        let tag = format!("@{}", name);
+        if resolved_message.contains(&tag) {
+            let replacement = format!("[Document: {}]\n{}\n[/Document]", name, content);
+            resolved_message = resolved_message.replace(&tag, &replacement);
+        }
+    }
+
     // Get campaign info
     let campaign = query_campaign(pool, &campaign_id).await?;
 
@@ -438,7 +563,7 @@ pub async fn send_gm_message(
         return Ok(new_messages);
     }
 
-    // Route the message
+    // Route the message (using resolved text with document content)
     let route_result = route_gm_message(
         &client,
         &config,
@@ -446,7 +571,7 @@ pub async fn send_gm_message(
         &ruleset_content,
         &players,
         &characters,
-        &message,
+        &resolved_message,
     )
     .await?;
 
@@ -518,7 +643,7 @@ pub async fn send_gm_message(
             &config,
             pool,
             &context,
-            &message,
+            &resolved_message,
             &campaign.setting,
             &ruleset_content,
         )
@@ -556,6 +681,16 @@ pub async fn send_gm_message(
     }
 
     Ok(new_messages)
+}
+
+// Player memory commands
+#[tauri::command]
+pub async fn get_player_memories(
+    db: Db<'_>,
+    player_id: String,
+    campaign_id: String,
+) -> Result<Vec<PlayerMemory>, AppError> {
+    memory::get_player_memories(db.inner(), &player_id, &campaign_id, 50).await
 }
 
 // Campaign log commands

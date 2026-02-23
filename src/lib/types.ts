@@ -64,6 +64,16 @@ export interface CampaignLogEntry {
   timestamp: string;
 }
 
+export interface PlayerMemory {
+  id: string;
+  player_id: string;
+  campaign_id: string;
+  content: string;
+  memory_type: string;
+  importance: number;
+  created_at: string;
+}
+
 export interface AppConfig {
   api: {
     groq_api_key: string;
@@ -101,6 +111,27 @@ export interface CreatePlayerCharacterRequest {
   player_id: string | null;
   name: string;
   details: Record<string, unknown>;
+}
+
+export interface Document {
+  id: string;
+  campaign_id: string;
+  name: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateDocumentRequest {
+  campaign_id: string;
+  name: string;
+  content: string;
+}
+
+export interface UpdateDocumentRequest {
+  id: string;
+  name: string;
+  content: string;
 }
 
 export type AppView = 'home' | 'chat' | 'campaign-setup' | 'ruleset-edit';

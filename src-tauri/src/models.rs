@@ -119,3 +119,27 @@ pub struct CreatePlayerCharacterRequest {
     pub name: String,
     pub details: serde_json::Value,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Document {
+    pub id: String,
+    pub campaign_id: String,
+    pub name: String,
+    pub content: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateDocumentRequest {
+    pub campaign_id: String,
+    pub name: String,
+    pub content: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateDocumentRequest {
+    pub id: String,
+    pub name: String,
+    pub content: String,
+}
