@@ -128,7 +128,8 @@ Guidelines:
 - React based on your character's personality and knowledge
 - You may use the recall_memory tool if trying to remember something specific
 - Use store_memory for significant new information your character would remember
-- Use update_rules when the GM explains, clarifies, or modifies a game rule"#,
+- Use update_rules when the GM explains, clarifies, or modifies a game rule
+- Do NOT prefix your response with your name (e.g. "[{name}]:" or "{name}:") — just respond directly in character"#,
         name = context.player.name,
         personality = context.player.personality,
         character_details = character_details,
@@ -147,19 +148,15 @@ Guidelines:
     }];
 
     // Add recent conversation history for context
+    // All history goes as "user" role to avoid teaching the model to prefix its name
     for msg in recent_messages {
-        let role = match msg.sender_type.as_str() {
-            "gm" => "user",
-            "player" => "assistant",
+        let content = match msg.sender_type.as_str() {
+            "gm" => format!("[GM]: {}", msg.content),
+            "player" => format!("[{}]: {}", msg.sender_name, msg.content),
             _ => continue,
         };
-        let content = if msg.sender_type == "gm" {
-            format!("[GM]: {}", msg.content)
-        } else {
-            format!("[{}]: {}", msg.sender_name, msg.content)
-        };
         messages.push(ApiMessage {
-            role: role.to_string(),
+            role: "user".to_string(),
             content: Some(content),
             tool_calls: None,
             tool_call_id: None,

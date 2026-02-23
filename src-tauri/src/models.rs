@@ -145,3 +145,28 @@ pub struct UpdateDocumentRequest {
     pub name: String,
     pub content: String,
 }
+
+// Event payloads for real-time UI updates
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PlayerTypingEvent {
+    pub campaign_id: String,
+    pub player_id: String,
+    pub player_name: String,
+    pub player_color: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MessageEvent {
+    pub message: Message,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GenerationCompleteEvent {
+    pub campaign_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GenerationErrorEvent {
+    pub campaign_id: String,
+    pub error: String,
+}

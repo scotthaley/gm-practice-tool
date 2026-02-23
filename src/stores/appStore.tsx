@@ -15,6 +15,7 @@ interface AppState {
   settingsOpen: boolean;
   playerSetupOpen: boolean;
   characterSetupOpen: boolean;
+  typingPlayer: { id: string; name: string; color: string } | null;
   loading: boolean;
   error: string | null;
 }
@@ -29,6 +30,8 @@ type AppAction =
   | { type: 'ADD_PLAYER_CHARACTER'; playerCharacter: PlayerCharacter }
   | { type: 'SET_MESSAGES'; messages: Message[] }
   | { type: 'ADD_MESSAGES'; messages: Message[] }
+  | { type: 'ADD_MESSAGE'; message: Message }
+  | { type: 'SET_TYPING_PLAYER'; player: { id: string; name: string; color: string } | null }
   | { type: 'SET_VIEW'; view: AppView }
   | { type: 'SET_SETTINGS_OPEN'; open: boolean }
   | { type: 'SET_PLAYER_SETUP_OPEN'; open: boolean }
@@ -57,6 +60,7 @@ const initialState: AppState = {
   documents: [],
   documentModalOpen: false,
   editingDocument: null,
+  typingPlayer: null,
   currentView: 'home',
   settingsOpen: false,
   playerSetupOpen: false,
@@ -85,6 +89,10 @@ function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, messages: action.messages };
     case 'ADD_MESSAGES':
       return { ...state, messages: [...state.messages, ...action.messages] };
+    case 'ADD_MESSAGE':
+      return { ...state, messages: [...state.messages, action.message] };
+    case 'SET_TYPING_PLAYER':
+      return { ...state, typingPlayer: action.player };
     case 'SET_VIEW':
       return { ...state, currentView: action.view };
     case 'SET_SETTINGS_OPEN':

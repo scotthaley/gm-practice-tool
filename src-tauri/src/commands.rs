@@ -7,7 +7,7 @@ use crate::llm::router::route_gm_message;
 use crate::models::*;
 use sqlx::sqlite::SqlitePool;
 use sqlx::Row;
-use tauri::State;
+use tauri::{Emitter, State};
 use uuid::Uuid;
 
 type Db<'a> = State<'a, SqlitePool>;
@@ -486,13 +486,13 @@ pub async fn delete_document(db: Db<'_>, document_id: String) -> Result<(), AppE
 #[tauri::command]
 pub async fn send_gm_message(
     db: Db<'_>,
+    app_handle: tauri::AppHandle,
     campaign_id: String,
     message: String,
-) -> Result<Vec<Message>, AppError> {
+) -> Result<(), AppError> {
     let pool = db.inner();
     let config = config::load_config()?;
     let client = LlmClient::new(&config)?;
-    let mut new_messages: Vec<Message> = Vec::new();
 
     // Store GM message
     let gm_msg_id = Uuid::new_v4().to_string();
@@ -512,7 +512,7 @@ pub async fn send_gm_message(
     .await
     .map_err(|e| AppError::Database(e.to_string()))?;
 
-    new_messages.push(Message {
+    let gm_message = Message {
         id: gm_msg_id,
         campaign_id: campaign_id.clone(),
         sender_type: "gm".to_string(),
@@ -521,7 +521,8 @@ pub async fn send_gm_message(
         content: message.clone(),
         metadata: serde_json::json!({}),
         timestamp: now.clone(),
-    });
+    };
+    let _ = app_handle.emit("gm:message_stored", MessageEvent { message: gm_message });
 
     // Resolve @DocName references for LLM
     let documents = {
@@ -563,39 +564,14 @@ pub async fn send_gm_message(
     let players = query_players(pool, &campaign_id).await?;
     let characters = query_player_characters(pool, &campaign_id).await?;
     if players.is_empty() {
-        return Ok(new_messages);
+        let _ = app_handle.emit("gm:generation_complete", GenerationCompleteEvent { campaign_id });
+        return Ok(());
     }
 
-    // Load recent messages for conversation context
+    // Load recent messages for routing context
     let context_message_count = config.app.context_messages;
-    let recent_messages: Vec<Message> = if context_message_count > 0 {
-        let rows = sqlx::query(
-            "SELECT id, campaign_id, sender_type, sender_id, sender_name, content, metadata, timestamp FROM messages WHERE campaign_id = ? ORDER BY timestamp DESC LIMIT ?",
-        )
-        .bind(&campaign_id)
-        .bind(context_message_count)
-        .fetch_all(pool)
-        .await
-        .map_err(|e| AppError::Database(e.to_string()))?;
-
-        let mut msgs: Vec<Message> = rows
-            .iter()
-            .map(|r| {
-                let metadata_str: String = r.get("metadata");
-                Message {
-                    id: r.get("id"),
-                    campaign_id: r.get("campaign_id"),
-                    sender_type: r.get("sender_type"),
-                    sender_id: r.get("sender_id"),
-                    sender_name: r.get("sender_name"),
-                    content: r.get("content"),
-                    metadata: serde_json::from_str(&metadata_str).unwrap_or_default(),
-                    timestamp: r.get("timestamp"),
-                }
-            })
-            .collect();
-        msgs.reverse(); // Chronological order
-        msgs
+    let routing_messages: Vec<Message> = if context_message_count > 0 {
+        load_recent_messages(pool, &campaign_id, context_message_count).await?
     } else {
         Vec::new()
     };
@@ -609,7 +585,7 @@ pub async fn send_gm_message(
         &players,
         &characters,
         &resolved_message,
-        &recent_messages,
+        &routing_messages,
     )
     .await?;
 
@@ -656,6 +632,14 @@ pub async fn send_gm_message(
             None => continue,
         };
 
+        // Emit typing indicator
+        let _ = app_handle.emit("gm:player_typing", PlayerTypingEvent {
+            campaign_id: campaign_id.clone(),
+            player_id: player.id.clone(),
+            player_name: player.name.clone(),
+            player_color: player.color.clone(),
+        });
+
         let player_characters: Vec<PlayerCharacter> = characters
             .iter()
             .filter(|c| c.player_id.as_deref() == Some(&player.id))
@@ -676,7 +660,14 @@ pub async fn send_gm_message(
             ruleset_id: campaign.ruleset_id.clone(),
         };
 
-        let (response_text, metadata) = generate_player_response(
+        // Load fresh recent messages so each player sees previous players' responses
+        let recent_messages: Vec<Message> = if context_message_count > 0 {
+            load_recent_messages(pool, &campaign_id, context_message_count).await?
+        } else {
+            Vec::new()
+        };
+
+        let result = generate_player_response(
             &client,
             &config,
             pool,
@@ -686,40 +677,87 @@ pub async fn send_gm_message(
             &ruleset_content,
             &recent_messages,
         )
-        .await?;
+        .await;
 
-        // Store player message
-        let msg_id = Uuid::new_v4().to_string();
-        let msg_now = chrono::Utc::now().to_rfc3339();
-        let metadata_str = serde_json::to_string(&metadata).unwrap_or_default();
-        sqlx::query(
-            "INSERT INTO messages (id, campaign_id, sender_type, sender_id, sender_name, content, metadata, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        )
-        .bind(&msg_id)
-        .bind(&campaign_id)
-        .bind("player")
-        .bind(&player.id)
-        .bind(&player.name)
-        .bind(&response_text)
-        .bind(&metadata_str)
-        .bind(&msg_now)
-        .execute(pool)
-        .await
-        .map_err(|e| AppError::Database(e.to_string()))?;
+        match result {
+            Ok((response_text, metadata)) => {
+                // Store player message
+                let msg_id = Uuid::new_v4().to_string();
+                let msg_now = chrono::Utc::now().to_rfc3339();
+                let metadata_str = serde_json::to_string(&metadata).unwrap_or_default();
+                sqlx::query(
+                    "INSERT INTO messages (id, campaign_id, sender_type, sender_id, sender_name, content, metadata, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                )
+                .bind(&msg_id)
+                .bind(&campaign_id)
+                .bind("player")
+                .bind(&player.id)
+                .bind(&player.name)
+                .bind(&response_text)
+                .bind(&metadata_str)
+                .bind(&msg_now)
+                .execute(pool)
+                .await
+                .map_err(|e| AppError::Database(e.to_string()))?;
 
-        new_messages.push(Message {
-            id: msg_id,
-            campaign_id: campaign_id.clone(),
-            sender_type: "player".to_string(),
-            sender_id: Some(player.id.clone()),
-            sender_name: player.name.clone(),
-            content: response_text,
-            metadata,
-            timestamp: msg_now,
-        });
+                let player_message = Message {
+                    id: msg_id,
+                    campaign_id: campaign_id.clone(),
+                    sender_type: "player".to_string(),
+                    sender_id: Some(player.id.clone()),
+                    sender_name: player.name.clone(),
+                    content: response_text,
+                    metadata,
+                    timestamp: msg_now,
+                };
+                let _ = app_handle.emit("gm:player_response", MessageEvent { message: player_message });
+            }
+            Err(e) => {
+                let _ = app_handle.emit("gm:generation_error", GenerationErrorEvent {
+                    campaign_id: campaign_id.clone(),
+                    error: format!("{} failed: {}", player.name, e),
+                });
+                continue;
+            }
+        }
     }
 
-    Ok(new_messages)
+    let _ = app_handle.emit("gm:generation_complete", GenerationCompleteEvent { campaign_id });
+    Ok(())
+}
+
+async fn load_recent_messages(
+    pool: &SqlitePool,
+    campaign_id: &str,
+    limit: u32,
+) -> Result<Vec<Message>, AppError> {
+    let rows = sqlx::query(
+        "SELECT id, campaign_id, sender_type, sender_id, sender_name, content, metadata, timestamp FROM messages WHERE campaign_id = ? ORDER BY timestamp DESC LIMIT ?",
+    )
+    .bind(campaign_id)
+    .bind(limit)
+    .fetch_all(pool)
+    .await
+    .map_err(|e| AppError::Database(e.to_string()))?;
+
+    let mut msgs: Vec<Message> = rows
+        .iter()
+        .map(|r| {
+            let metadata_str: String = r.get("metadata");
+            Message {
+                id: r.get("id"),
+                campaign_id: r.get("campaign_id"),
+                sender_type: r.get("sender_type"),
+                sender_id: r.get("sender_id"),
+                sender_name: r.get("sender_name"),
+                content: r.get("content"),
+                metadata: serde_json::from_str(&metadata_str).unwrap_or_default(),
+                timestamp: r.get("timestamp"),
+            }
+        })
+        .collect();
+    msgs.reverse(); // Chronological order
+    Ok(msgs)
 }
 
 // Delete commands

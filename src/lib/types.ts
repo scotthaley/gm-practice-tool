@@ -147,3 +147,24 @@ export interface UpdateDocumentRequest {
 }
 
 export type AppView = 'home' | 'chat' | 'campaign-setup' | 'ruleset-edit';
+
+// Event payloads from Tauri backend
+export interface PlayerTypingEvent {
+  campaign_id: string;
+  player_id: string;
+  player_name: string;
+  player_color: string;
+}
+
+export interface MessageEvent {
+  message: Message;
+}
+
+export interface GenerationCompleteEvent {
+  campaign_id: string;
+}
+
+export interface GenerationErrorEvent {
+  campaign_id: string;
+  error: string;
+}

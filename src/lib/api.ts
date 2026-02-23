@@ -57,7 +57,7 @@ export async function getMessages(campaignId: string): Promise<Message[]> {
   return invoke('get_messages', { campaignId });
 }
 
-export async function sendGmMessage(campaignId: string, message: string): Promise<Message[]> {
+export async function sendGmMessage(campaignId: string, message: string): Promise<void> {
   return invoke('send_gm_message', { campaignId, message });
 }
 

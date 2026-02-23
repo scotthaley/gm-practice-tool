@@ -5,14 +5,14 @@ import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 
 export function ChatView() {
-  const { messages, loading, error, sendMessage } = useChat();
+  const { messages, loading, error, typingPlayer, sendMessage } = useChat();
   const { activeCampaign, players, documents } = useAppState();
   const dispatch = useAppDispatch();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, typingPlayer]);
 
   useEffect(() => {
     if (!activeCampaign) {
@@ -42,10 +42,22 @@ export function ChatView() {
         {messages.map((msg) => (
           <ChatMessage key={msg.id} message={msg} players={players} />
         ))}
-        {loading && (
+        {typingPlayer && (
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium" style={{ color: typingPlayer.color }}>
+              {typingPlayer.name} is responding
+            </span>
+            <span className="flex gap-0.5" style={{ color: typingPlayer.color }}>
+              <span className="animate-bounce [animation-delay:0ms]">.</span>
+              <span className="animate-bounce [animation-delay:150ms]">.</span>
+              <span className="animate-bounce [animation-delay:300ms]">.</span>
+            </span>
+          </div>
+        )}
+        {loading && !typingPlayer && (
           <div className="flex items-center gap-2 text-gray-400">
             <div className="animate-spin h-4 w-4 border-2 border-gray-400 border-t-transparent rounded-full" />
-            <span className="text-sm">Players are responding...</span>
+            <span className="text-sm">Processing...</span>
           </div>
         )}
         <div ref={messagesEndRef} />
