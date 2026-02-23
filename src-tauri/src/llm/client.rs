@@ -9,21 +9,20 @@ pub struct LlmClient {
 
 impl LlmClient {
     pub fn new(config: &AppConfig) -> Result<Self, AppError> {
-        if config.api.anthropic_api_key.is_empty() {
-            return Err(AppError::Llm("Anthropic API key not configured".to_string()));
+        if config.api.groq_api_key.is_empty() {
+            return Err(AppError::Llm("Groq API key not configured".to_string()));
         }
         Ok(Self {
             client: reqwest::Client::new(),
-            api_key: config.api.anthropic_api_key.clone(),
+            api_key: config.api.groq_api_key.clone(),
         })
     }
 
     pub async fn send(&self, request: &ApiRequest) -> Result<ApiResponse, AppError> {
         let response = self
             .client
-            .post("https://api.anthropic.com/v1/messages")
-            .header("x-api-key", &self.api_key)
-            .header("anthropic-version", "2023-06-01")
+            .post("https://api.groq.com/openai/v1/chat/completions")
+            .header("Authorization", format!("Bearer {}", self.api_key))
             .header("content-type", "application/json")
             .json(request)
             .send()
@@ -34,7 +33,6 @@ impl LlmClient {
 
         if !status.is_success() {
             let api_error: ApiError = serde_json::from_str(&body).unwrap_or(ApiError {
-                error_type: None,
                 error: None,
             });
             let msg = api_error

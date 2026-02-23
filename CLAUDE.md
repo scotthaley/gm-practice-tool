@@ -27,12 +27,12 @@ bun install                                          # Install frontend dependen
 - `error.rs` — `AppError` enum using `thiserror`, auto-serialized for frontend
 
 **LLM Pipeline (`src-tauri/src/llm/`):**
-- `router.rs` — Haiku 4.5 classifies GM input → target players, log entry, group memories (temp 0.0)
-- `player.rs` — Sonnet 4.6 generates in-character responses with tool use loop (max 5 iterations, temp 0.8)
+- `router.rs` — Router model classifies GM input → target players, log entry, group memories (temp 0.0)
+- `player.rs` — Player model generates in-character responses with tool use loop (max 5 iterations, temp 0.8)
 - `tools.rs` — Tool definitions: `roll_dice`, `store_memory`, `add_campaign_log`, `recall_memory`
 - `memory.rs` — DB queries for player/group/campaign memories (top 10 by importance)
-- `client.rs` — Anthropic API HTTP client
-- `types.rs` — API request/response type definitions
+- `client.rs` — Groq API HTTP client (OpenAI-compatible format)
+- `types.rs` — API request/response type definitions (OpenAI-compatible)
 
 **Frontend (React/TypeScript, `src/`):**
 - `stores/appStore.tsx` — Context + useReducer state management (campaigns, players, messages, view)

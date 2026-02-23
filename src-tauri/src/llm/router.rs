@@ -1,7 +1,7 @@
 use crate::config::AppConfig;
 use crate::error::AppError;
 use crate::llm::client::LlmClient;
-use crate::llm::types::{ApiContent, ApiMessage, ApiRequest, ContentBlock, RouterResult};
+use crate::llm::types::{ApiMessage, ApiRequest, RouterResult};
 use crate::models::{Player, PlayerCharacter};
 
 fn summarize_character_details(details: &serde_json::Value) -> String {
@@ -85,7 +85,7 @@ pub async fn route_gm_message(
 
     let player_list = entity_lines.join("\n");
 
-    let system = format!(
+    let system_prompt = format!(
         r#"You are a TTRPG routing assistant. Given a GM's message and the list of players, determine:
 1. Which players should respond (by their IDs)
 2. A brief log summary of what the GM described
@@ -120,23 +120,29 @@ If addressing a specific player by name, only include that player."#,
         model: config.models.router.clone(),
         max_tokens: config.models.parameters.router_max_tokens,
         temperature: Some(0.0),
-        system,
-        messages: vec![ApiMessage {
-            role: "user".to_string(),
-            content: ApiContent::Text(gm_message.to_string()),
-        }],
+        messages: vec![
+            ApiMessage {
+                role: "system".to_string(),
+                content: Some(system_prompt),
+                tool_calls: None,
+                tool_call_id: None,
+            },
+            ApiMessage {
+                role: "user".to_string(),
+                content: Some(gm_message.to_string()),
+                tool_calls: None,
+                tool_call_id: None,
+            },
+        ],
         tools: None,
     };
 
     let response = client.send(&request).await?;
 
     let text = response
-        .content
-        .iter()
-        .find_map(|block| match block {
-            ContentBlock::Text { text } => Some(text.clone()),
-            _ => None,
-        })
+        .choices
+        .first()
+        .and_then(|c| c.message.content.clone())
         .unwrap_or_default();
 
     // Extract JSON from response (handle markdown code blocks)

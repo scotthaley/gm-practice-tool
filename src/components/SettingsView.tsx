@@ -56,15 +56,15 @@ export function SettingsModal() {
             <div>
               <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">API</h3>
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Anthropic API Key</label>
+                <label className="block text-sm text-gray-400 mb-1">Groq API Key</label>
                 <input
                   type="password"
-                  value={config.api.anthropic_api_key}
+                  value={config.api.groq_api_key}
                   onChange={(e) =>
-                    setConfig({ ...config, api: { ...config.api, anthropic_api_key: e.target.value } })
+                    setConfig({ ...config, api: { ...config.api, groq_api_key: e.target.value } })
                   }
                   className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-indigo-500"
-                  placeholder="sk-ant-..."
+                  placeholder="gsk_..."
                 />
               </div>
             </div>

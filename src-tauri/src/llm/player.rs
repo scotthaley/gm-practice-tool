@@ -96,7 +96,7 @@ pub async fn generate_player_response(
         format!("\nRules:\n{}\n", ruleset_content)
     };
 
-    let system = format!(
+    let system_prompt = format!(
         r#"You are roleplaying as {name}, a player in a TTRPG campaign.
 
 Setting: {setting}
@@ -135,10 +135,20 @@ Guidelines:
         recent_log = recent_log_text,
     );
 
-    let mut messages = vec![ApiMessage {
-        role: "user".to_string(),
-        content: ApiContent::Text(format!("[GM]: {}", gm_message)),
-    }];
+    let mut messages = vec![
+        ApiMessage {
+            role: "system".to_string(),
+            content: Some(system_prompt.clone()),
+            tool_calls: None,
+            tool_call_id: None,
+        },
+        ApiMessage {
+            role: "user".to_string(),
+            content: Some(format!("[GM]: {}", gm_message)),
+            tool_calls: None,
+            tool_call_id: None,
+        },
+    ];
 
     let tools = get_player_tools();
     let mut all_metadata = json!({ "tool_calls": [] });
@@ -150,60 +160,72 @@ Guidelines:
             model: config.models.player.clone(),
             max_tokens: config.models.parameters.player_max_tokens,
             temperature: Some(config.models.parameters.temperature),
-            system: system.clone(),
             messages: messages.clone(),
             tools: Some(tools.clone()),
         };
 
         let response = client.send(&request).await?;
 
-        let mut has_tool_use = false;
-        let mut tool_results: Vec<ContentBlock> = Vec::new();
-        let mut assistant_blocks: Vec<ContentBlock> = Vec::new();
+        let choice = response
+            .choices
+            .first()
+            .ok_or_else(|| AppError::Llm("No choices in API response".to_string()))?;
 
-        for block in &response.content {
-            match block {
-                ContentBlock::Text { text } => {
-                    final_text = text.clone();
-                    assistant_blocks.push(block.clone());
-                }
-                ContentBlock::ToolUse { id, name, input } => {
-                    has_tool_use = true;
-                    assistant_blocks.push(block.clone());
-
-                    let result =
-                        handle_tool_call(pool, &context.player, &context.ruleset_id, name, input).await?;
-
-                    if let Some(calls) = all_metadata["tool_calls"].as_array_mut() {
-                        calls.push(json!({
-                            "tool": name,
-                            "input": input,
-                            "result": result
-                        }));
-                    }
-
-                    tool_results.push(ContentBlock::ToolResult {
-                        tool_use_id: id.clone(),
-                        content: result,
-                    });
-                }
-                _ => {}
+        // Extract text content if present
+        if let Some(text) = &choice.message.content {
+            if !text.is_empty() {
+                final_text = text.clone();
             }
         }
 
+        let tool_calls = choice.message.tool_calls.clone().unwrap_or_default();
+
+        // Add the assistant message to history (required by OpenAI format)
         messages.push(ApiMessage {
             role: "assistant".to_string(),
-            content: ApiContent::Blocks(assistant_blocks),
+            content: choice.message.content.clone(),
+            tool_calls: if tool_calls.is_empty() {
+                None
+            } else {
+                Some(tool_calls.clone())
+            },
+            tool_call_id: None,
         });
 
-        if !has_tool_use {
+        if tool_calls.is_empty() {
             break;
         }
 
-        messages.push(ApiMessage {
-            role: "user".to_string(),
-            content: ApiContent::Blocks(tool_results),
-        });
+        // Process each tool call and add results
+        for tc in &tool_calls {
+            let input: serde_json::Value =
+                serde_json::from_str(&tc.function.arguments).unwrap_or(json!({}));
+
+            let result = handle_tool_call(
+                pool,
+                &context.player,
+                &context.ruleset_id,
+                &tc.function.name,
+                &input,
+            )
+            .await?;
+
+            if let Some(calls) = all_metadata["tool_calls"].as_array_mut() {
+                calls.push(json!({
+                    "tool": tc.function.name,
+                    "input": input,
+                    "result": result
+                }));
+            }
+
+            // Tool results use role "tool" with tool_call_id
+            messages.push(ApiMessage {
+                role: "tool".to_string(),
+                content: Some(result),
+                tool_calls: None,
+                tool_call_id: Some(tc.id.clone()),
+            });
+        }
     }
 
     Ok((final_text, all_metadata))

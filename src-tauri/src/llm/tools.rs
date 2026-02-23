@@ -1,96 +1,111 @@
-use crate::llm::types::ToolDefinition;
+use crate::llm::types::{ToolDefinition, ToolDefinitionWrapper};
 use rand::Rng;
 use serde_json::json;
 
-pub fn get_player_tools() -> Vec<ToolDefinition> {
+pub fn get_player_tools() -> Vec<ToolDefinitionWrapper> {
     vec![
-        ToolDefinition {
-            name: "roll_dice".to_string(),
-            description: "Roll dice using standard notation (e.g., '2d6+3', '1d20', '4d6'). Use this when your character needs to make a check, attack, or any action that requires a dice roll.".to_string(),
-            input_schema: json!({
-                "type": "object",
-                "properties": {
-                    "notation": {
-                        "type": "string",
-                        "description": "Dice notation like '2d6+3', '1d20', '4d6-1'"
+        ToolDefinitionWrapper {
+            tool_type: "function".to_string(),
+            function: ToolDefinition {
+                name: "roll_dice".to_string(),
+                description: "Roll dice using standard notation (e.g., '2d6+3', '1d20', '4d6'). Use this when your character needs to make a check, attack, or any action that requires a dice roll.".to_string(),
+                parameters: json!({
+                    "type": "object",
+                    "properties": {
+                        "notation": {
+                            "type": "string",
+                            "description": "Dice notation like '2d6+3', '1d20', '4d6-1'"
+                        },
+                        "reason": {
+                            "type": "string",
+                            "description": "Why the roll is being made (e.g., 'perception check', 'attack roll')"
+                        }
                     },
-                    "reason": {
-                        "type": "string",
-                        "description": "Why the roll is being made (e.g., 'perception check', 'attack roll')"
-                    }
-                },
-                "required": ["notation", "reason"]
-            }),
+                    "required": ["notation", "reason"]
+                }),
+            },
         },
-        ToolDefinition {
-            name: "store_memory".to_string(),
-            description: "Store an important memory or observation that your character would remember. Use this for significant events, NPC names, plot points, or things your character notices.".to_string(),
-            input_schema: json!({
-                "type": "object",
-                "properties": {
-                    "content": {
-                        "type": "string",
-                        "description": "The memory content to store"
+        ToolDefinitionWrapper {
+            tool_type: "function".to_string(),
+            function: ToolDefinition {
+                name: "store_memory".to_string(),
+                description: "Store an important memory or observation that your character would remember. Use this for significant events, NPC names, plot points, or things your character notices.".to_string(),
+                parameters: json!({
+                    "type": "object",
+                    "properties": {
+                        "content": {
+                            "type": "string",
+                            "description": "The memory content to store"
+                        },
+                        "memory_type": {
+                            "type": "string",
+                            "enum": ["observation", "emotion", "plan", "knowledge", "relationship"],
+                            "description": "Type of memory"
+                        },
+                        "importance": {
+                            "type": "number",
+                            "description": "Importance from 0.0 to 1.0 (1.0 = critical)"
+                        }
                     },
-                    "memory_type": {
-                        "type": "string",
-                        "enum": ["observation", "emotion", "plan", "knowledge", "relationship"],
-                        "description": "Type of memory"
+                    "required": ["content", "memory_type", "importance"]
+                }),
+            },
+        },
+        ToolDefinitionWrapper {
+            tool_type: "function".to_string(),
+            function: ToolDefinition {
+                name: "add_campaign_log".to_string(),
+                description: "Add an entry to the campaign log. Use this to record significant actions or events that happen during the scene.".to_string(),
+                parameters: json!({
+                    "type": "object",
+                    "properties": {
+                        "summary": {
+                            "type": "string",
+                            "description": "Brief summary of what happened"
+                        },
+                        "entry_type": {
+                            "type": "string",
+                            "enum": ["action", "dialogue", "combat", "discovery", "social"],
+                            "description": "Type of log entry"
+                        }
                     },
-                    "importance": {
-                        "type": "number",
-                        "description": "Importance from 0.0 to 1.0 (1.0 = critical)"
-                    }
-                },
-                "required": ["content", "memory_type", "importance"]
-            }),
+                    "required": ["summary", "entry_type"]
+                }),
+            },
         },
-        ToolDefinition {
-            name: "add_campaign_log".to_string(),
-            description: "Add an entry to the campaign log. Use this to record significant actions or events that happen during the scene.".to_string(),
-            input_schema: json!({
-                "type": "object",
-                "properties": {
-                    "summary": {
-                        "type": "string",
-                        "description": "Brief summary of what happened"
+        ToolDefinitionWrapper {
+            tool_type: "function".to_string(),
+            function: ToolDefinition {
+                name: "update_rules".to_string(),
+                description: "Append a rule clarification or update to the campaign's ruleset. Use this when the GM explains, clarifies, or modifies a game rule, or when a house rule is established during play.".to_string(),
+                parameters: json!({
+                    "type": "object",
+                    "properties": {
+                        "clarification": {
+                            "type": "string",
+                            "description": "The rule clarification, explanation, or house rule to append to the ruleset"
+                        }
                     },
-                    "entry_type": {
-                        "type": "string",
-                        "enum": ["action", "dialogue", "combat", "discovery", "social"],
-                        "description": "Type of log entry"
-                    }
-                },
-                "required": ["summary", "entry_type"]
-            }),
+                    "required": ["clarification"]
+                }),
+            },
         },
-        ToolDefinition {
-            name: "update_rules".to_string(),
-            description: "Append a rule clarification or update to the campaign's ruleset. Use this when the GM explains, clarifies, or modifies a game rule, or when a house rule is established during play.".to_string(),
-            input_schema: json!({
-                "type": "object",
-                "properties": {
-                    "clarification": {
-                        "type": "string",
-                        "description": "The rule clarification, explanation, or house rule to append to the ruleset"
-                    }
-                },
-                "required": ["clarification"]
-            }),
-        },
-        ToolDefinition {
-            name: "recall_memory".to_string(),
-            description: "Try to recall a memory about a specific topic. Use this when your character is trying to remember something relevant.".to_string(),
-            input_schema: json!({
-                "type": "object",
-                "properties": {
-                    "query": {
-                        "type": "string",
-                        "description": "What to try to remember"
-                    }
-                },
-                "required": ["query"]
-            }),
+        ToolDefinitionWrapper {
+            tool_type: "function".to_string(),
+            function: ToolDefinition {
+                name: "recall_memory".to_string(),
+                description: "Try to recall a memory about a specific topic. Use this when your character is trying to remember something relevant.".to_string(),
+                parameters: json!({
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": "What to try to remember"
+                        }
+                    },
+                    "required": ["query"]
+                }),
+            },
         },
     ]
 }

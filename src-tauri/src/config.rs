@@ -12,7 +12,7 @@ pub struct AppConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ApiConfig {
-    pub anthropic_api_key: String,
+    pub groq_api_key: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -38,11 +38,11 @@ impl Default for AppConfig {
     fn default() -> Self {
         Self {
             api: ApiConfig {
-                anthropic_api_key: String::new(),
+                groq_api_key: String::new(),
             },
             models: ModelsConfig {
-                router: "claude-haiku-4-5-20241022".to_string(),
-                player: "claude-sonnet-4-6-20250514".to_string(),
+                router: "llama-3.1-8b-instant".to_string(),
+                player: "llama-3.3-70b-versatile".to_string(),
                 parameters: ModelParameters {
                     router_max_tokens: 500,
                     player_max_tokens: 2000,

@@ -66,7 +66,7 @@ export interface CampaignLogEntry {
 
 export interface AppConfig {
   api: {
-    anthropic_api_key: string;
+    groq_api_key: string;
   };
   models: {
     router: string;
