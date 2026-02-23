@@ -136,6 +136,7 @@ Guidelines:
 - You may use the recall_memory tool if trying to remember something specific
 - Use store_memory for significant new information your character would remember
 - Use update_rules when the GM explains, clarifies, or modifies a game rule
+- Use create_character and update_character tools when building or modifying character sheets
 - Do NOT prefix your response with your name (e.g. "[{name}]:" or "{name}:") — just respond directly in character"#,
         name = context.player.name,
         personality = context.player.personality,
@@ -386,6 +387,86 @@ async fn handle_tool_call(
                     .collect::<Vec<_>>()
                     .join("\n");
                 Ok(format!("Recalled memories:\n{}", text))
+            }
+        }
+        "create_character" => {
+            let name = input["name"].as_str().unwrap_or("Unnamed");
+            let pronouns = input["pronouns"].as_str().unwrap_or("");
+            let details = input.get("details").cloned().unwrap_or(json!({}));
+            let id = Uuid::new_v4().to_string();
+            let now = chrono::Utc::now().to_rfc3339();
+
+            sqlx::query(
+                "INSERT INTO player_characters (id, campaign_id, player_id, name, pronouns, details, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            )
+            .bind(&id)
+            .bind(&player.campaign_id)
+            .bind(&player.id)
+            .bind(name)
+            .bind(pronouns)
+            .bind(serde_json::to_string(&details).unwrap_or_default())
+            .bind(&now)
+            .execute(pool)
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
+
+            Ok(format!("Character '{}' created successfully.", name))
+        }
+        "update_character" => {
+            let char_name = input["character_name"].as_str().unwrap_or("");
+            let updates = input.get("updates").cloned().unwrap_or(json!({}));
+            let new_pronouns = input["pronouns"].as_str();
+
+            // Look up character by name and player_id
+            let row = sqlx::query(
+                "SELECT id, details, pronouns FROM player_characters WHERE name = ? AND player_id = ?",
+            )
+            .bind(char_name)
+            .bind(&player.id)
+            .fetch_optional(pool)
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
+
+            match row {
+                Some(row) => {
+                    let char_id: String = row.get("id");
+                    let existing_details_str: String = row.get("details");
+                    let mut existing_details: serde_json::Value =
+                        serde_json::from_str(&existing_details_str).unwrap_or(json!({}));
+
+                    // Merge updates into existing details
+                    if let (Some(existing_obj), Some(updates_obj)) =
+                        (existing_details.as_object_mut(), updates.as_object())
+                    {
+                        for (key, value) in updates_obj {
+                            existing_obj.insert(key.clone(), value.clone());
+                        }
+                    }
+
+                    let existing_pronouns: String = row.get("pronouns");
+                    let pronouns_val = new_pronouns.unwrap_or(&existing_pronouns);
+
+                    sqlx::query(
+                        "UPDATE player_characters SET details = ?, pronouns = ? WHERE id = ?",
+                    )
+                    .bind(serde_json::to_string(&existing_details).unwrap_or_default())
+                    .bind(pronouns_val)
+                    .bind(&char_id)
+                    .execute(pool)
+                    .await
+                    .map_err(|e| AppError::Database(e.to_string()))?;
+
+                    let updated_keys: Vec<String> = updates
+                        .as_object()
+                        .map(|o| o.keys().cloned().collect())
+                        .unwrap_or_default();
+                    Ok(format!(
+                        "Character '{}' updated: {}",
+                        char_name,
+                        updated_keys.join(", ")
+                    ))
+                }
+                None => Ok(format!("No character named '{}' found for this player.", char_name)),
             }
         }
         "update_rules" => {

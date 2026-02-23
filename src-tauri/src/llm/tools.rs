@@ -94,6 +94,56 @@ pub fn get_player_tools() -> Vec<ToolDefinitionWrapper> {
         ToolDefinitionWrapper {
             tool_type: "function".to_string(),
             function: ToolDefinition {
+                name: "create_character".to_string(),
+                description: "Create a new character for yourself. Use this when the GM asks you to create or build a character, or during character creation sessions.".to_string(),
+                parameters: json!({
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "description": "The character's name"
+                        },
+                        "pronouns": {
+                            "type": "string",
+                            "description": "The character's pronouns (e.g., 'he/him', 'she/her', 'they/them')"
+                        },
+                        "details": {
+                            "type": "object",
+                            "description": "Character details like race, class, level, backstory, stats, etc."
+                        }
+                    },
+                    "required": ["name"]
+                }),
+            },
+        },
+        ToolDefinitionWrapper {
+            tool_type: "function".to_string(),
+            function: ToolDefinition {
+                name: "update_character".to_string(),
+                description: "Update an existing character's details. Use this to modify character sheet fields like stats, equipment, level, HP, etc. New fields are merged into existing details without replacing them.".to_string(),
+                parameters: json!({
+                    "type": "object",
+                    "properties": {
+                        "character_name": {
+                            "type": "string",
+                            "description": "The name of the character to update"
+                        },
+                        "updates": {
+                            "type": "object",
+                            "description": "Fields to update or add to the character's details (merged into existing details)"
+                        },
+                        "pronouns": {
+                            "type": "string",
+                            "description": "New pronouns for the character (optional)"
+                        }
+                    },
+                    "required": ["character_name", "updates"]
+                }),
+            },
+        },
+        ToolDefinitionWrapper {
+            tool_type: "function".to_string(),
+            function: ToolDefinition {
                 name: "recall_memory".to_string(),
                 description: "Try to recall a memory about a specific topic. Use this when your character is trying to remember something relevant.".to_string(),
                 parameters: json!({
